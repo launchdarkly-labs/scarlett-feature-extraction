@@ -104,9 +104,22 @@ AI_GATEWAY_API_KEY=your-vercel-api-key
 npm run dev
 ```
 
-1. Upload .txt or .md transcripts
-2. Click "Extract Features"
-3. Download CSV
+1. Upload .txt or .md transcripts (select folder)
+2. (Optional) Customize output filename
+3. Click "Extract Features"
+4. Watch real-time progress bar showing:
+   - Current file being processed
+   - Processing stage (Classification → Extraction)
+   - Percentage complete (0-100%)
+   - File counter (e.g., "File 2 of 5")
+5. CSV downloads automatically when complete
+
+**Features:**
+- ✅ Real-time progress tracking with visual progress bar
+- ✅ Custom filename support for downloads
+- ✅ Per-file error reporting (batch continues on failures)
+- ✅ Empty file detection and validation
+- ✅ Handles UTF-8, special characters, and large files
 
 ### Deploy to Vercel
 
@@ -187,20 +200,24 @@ Total: ~$15/1,000 calls ($0.015/call avg)
 
 ```
 vercel/
-├── app/                        # Next.js Web App
-│   ├── page.tsx                # Upload UI
+├── app/                              # Next.js Web App
+│   ├── page.tsx                      # Upload UI with progress bar
 │   ├── layout.tsx
 │   ├── globals.css
-│   └── api/extract/route.ts    # Processing endpoint
+│   └── api/
+│       ├── extract/route.ts          # Legacy endpoint (no progress)
+│       └── extract-stream/route.ts   # Main endpoint with SSE progress
 ├── lib/
-│   ├── pipeline.ts             # Two-stage orchestration
-│   ├── launchdarkly-client.ts  # LD integration (singleton)
-│   ├── vercel-client.ts        # Vercel AI Gateway client
-│   └── variation-mapping.ts    # Category → Variation routing
+│   ├── pipeline.ts                   # Two-stage orchestration + progress tracking
+│   ├── launchdarkly-client.ts        # LD integration (singleton)
+│   ├── vercel-client.ts              # Vercel AI Gateway client
+│   └── variation-mapping.ts          # Category → Variation routing
 ├── bootstrap/
-│   └── create_configs.py       # Auto-create LD configs
-├── LAUNCHDARKLY_TOOLS.json     # Tool schemas (copy to LD)
-├── TUTORIAL.md                 # Long-form guide
+│   └── create_configs.py             # Auto-create LD configs
+├── data/
+│   └── test-transcripts/             # Edge case test files
+├── LAUNCHDARKLY_TOOLS.json           # Tool schemas (copy to LD)
+├── TUTORIAL.md                       # Long-form guide
 ├── package.json
 └── .env
 ```
@@ -223,6 +240,17 @@ vercel/
 **Classification/Extraction errors**
 → Verify configs exist in LaunchDarkly UI
 → Check targeting rules use `variation_hint` attribute
+
+**Empty file errors**
+→ Files must contain at least 50 characters
+→ Empty files are automatically detected and skipped
+→ Batch processing continues even if individual files fail
+
+**OIDC token expired (401 errors)**
+→ The Vercel AI Gateway OIDC token expires every 12 hours
+→ Refresh it by running: `npx vercel env pull`
+→ This updates `.env.local` with a fresh token
+→ Restart the dev server after refreshing
 
 ---
 

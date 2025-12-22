@@ -2,23 +2,29 @@
 
 import { useState } from "react";
 
+interface ProgressState {
+  percentage: number;
+  message: string;
+  current: number;
+  total: number;
+  filename: string;
+}
+
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState<string>("");
+  const [progressState, setProgressState] = useState<ProgressState | null>(null);
   const [error, setError] = useState<string>("");
+  const [downloadFilename, setDownloadFilename] = useState<string>("");
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Filter out system files and non-text files
+      // Filter: only .txt and .md files, excluding system files
       const validFiles = Array.from(e.target.files).filter((file) => {
         const name = file.name.toLowerCase();
-        // Exclude system files
-        if (name.startsWith('.') || name === 'desktop.ini' || name === 'thumbs.db') {
-          return false;
-        }
-        // Only include .txt and .md files
-        return name.endsWith('.txt') || name.endsWith('.md');
+        const isSystemFile = name.startsWith('.') || name === 'desktop.ini' || name === 'thumbs.db';
+        const isValidExtension = name.endsWith('.txt') || name.endsWith('.md');
+        return !isSystemFile && isValidExtension;
       });
 
       setFiles(validFiles);
@@ -39,38 +45,108 @@ export default function Home() {
     }
 
     setProcessing(true);
-    setProgress(`Processing ${files.length} transcript(s)...`);
+    setProgressState({
+      percentage: 0,
+      message: "Starting processing...",
+      current: 0,
+      total: files.length,
+      filename: ""
+    });
     setError("");
 
     try {
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
-      const response = await fetch("/api/extract", {
+      const response = await fetch("/api/extract-stream", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Processing failed");
+        throw new Error("Processing failed");
       }
 
-      // Download CSV
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `extracted_${Date.now()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      setProgress(`✓ Successfully processed ${files.length} transcript(s)`);
-      setFiles([]);
+      if (!reader) {
+        throw new Error("Failed to get response reader");
+      }
+
+      let csvData = "";
+      let csvFilename = "";
+
+      // Read SSE stream until complete
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.substring(6));
+
+            // Fatal error (no files uploaded, stream failure) - stop processing
+            if (data.type === "error" && !data.current) {
+              throw new Error(data.message);
+            }
+            // Individual file error - display warning but continue batch processing
+            else if (data.type === "error") {
+              setProgressState({
+                percentage: data.percentage,
+                message: `⚠️ ${data.message}`,
+                current: data.current,
+                total: data.total,
+                filename: data.filename
+              });
+            } else if (data.type === "done") {
+              csvData = data.csv;
+              csvFilename = data.filename;
+              setProgressState({
+                percentage: 100,
+                message: `✓ Successfully processed ${data.successCount}/${data.totalCount} transcript(s)`,
+                current: data.totalCount,
+                total: data.totalCount,
+                filename: ""
+              });
+            } else if (data.type) {
+              // Progress update (start, classification, extraction, complete)
+              setProgressState({
+                percentage: data.percentage,
+                message: data.message,
+                current: data.current,
+                total: data.total,
+                filename: data.filename
+              });
+            }
+          }
+        }
+      }
+
+      // Trigger CSV download with custom or generated filename
+      if (csvData) {
+        const blob = new Blob([csvData], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = downloadFilename || csvFilename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+
+      // Reset UI after brief delay to show completion state
+      setTimeout(() => {
+        setFiles([]);
+        setProgressState(null);
+      }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+      setProgressState(null);
     } finally {
       setProcessing(false);
     }
@@ -123,6 +199,9 @@ export default function Home() {
                 Click to select a folder
               </p>
               <p className="text-xs text-gray-500 mt-1">
+                Navigate into the folder, then click "Upload" or "Open"
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
                 All .txt and .md files will be processed
               </p>
             </label>
@@ -133,7 +212,7 @@ export default function Home() {
               <p className="text-sm font-medium text-gray-900 mb-2">
                 Selected files ({files.length}):
               </p>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <ul className="text-sm text-gray-600 space-y-1 max-h-40 overflow-y-auto">
                 {files.map((file, i) => (
                   <li key={i} className="truncate">
                     📄 {file.name}
@@ -143,9 +222,51 @@ export default function Home() {
             </div>
           )}
 
-          {progress && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">{progress}</p>
+          {files.length > 0 && !processing && (
+            <div className="space-y-2">
+              <label htmlFor="filename" className="block text-sm font-medium text-gray-700">
+                Output filename (optional)
+              </label>
+              <input
+                type="text"
+                id="filename"
+                value={downloadFilename}
+                onChange={(e) => setDownloadFilename(e.target.value)}
+                placeholder="extracted_results.csv"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              />
+              <p className="text-xs text-gray-500">
+                Files will be downloaded to your browser's default download location
+              </p>
+            </div>
+          )}
+
+          {progressState && (
+            <div className="space-y-3">
+              <div className={`${progressState.message.startsWith('⚠️') ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'} border rounded-lg p-4`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`text-sm font-medium ${progressState.message.startsWith('⚠️') ? 'text-yellow-900' : 'text-blue-900'}`}>
+                    {progressState.message}
+                  </p>
+                  <span className={`text-sm font-bold ${progressState.message.startsWith('⚠️') ? 'text-yellow-900' : 'text-blue-900'}`}>
+                    {progressState.percentage}%
+                  </span>
+                </div>
+                <div className={`w-full ${progressState.message.startsWith('⚠️') ? 'bg-yellow-200' : 'bg-blue-200'} rounded-full h-3 overflow-hidden`}>
+                  <div
+                    className={`${progressState.message.startsWith('⚠️') ? 'bg-yellow-600' : 'bg-blue-600'} h-full transition-all duration-300 ease-out rounded-full`}
+                    style={{ width: `${progressState.percentage}%` }}
+                  />
+                </div>
+                {progressState.filename && (
+                  <p className={`text-xs ${progressState.message.startsWith('⚠️') ? 'text-yellow-700' : 'text-blue-700'} mt-2`}>
+                    Processing: {progressState.filename}
+                  </p>
+                )}
+                <p className={`text-xs ${progressState.message.startsWith('⚠️') ? 'text-yellow-700' : 'text-blue-700'} mt-1`}>
+                  File {progressState.current} of {progressState.total}
+                </p>
+              </div>
             </div>
           )}
 

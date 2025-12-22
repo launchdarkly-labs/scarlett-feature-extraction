@@ -1,6 +1,10 @@
 /**
  * Two-Stage Transcript Extraction Pipeline
- * Stage 1: Classification → Stage 2: Feature Extraction
+ *
+ * Stage 1: Classification - Determines call type and routes to appropriate variation (A-F)
+ * Stage 2: Feature Extraction - Extracts structured data based on call type
+ *
+ * Supports optional progress callbacks for real-time status updates via SSE.
  */
 
 import {
@@ -27,6 +31,17 @@ export interface ExtractionResult {
   };
 }
 
+export interface ProgressUpdate {
+  type: 'start' | 'classification' | 'extraction' | 'complete' | 'error';
+  current: number;
+  total: number;
+  filename: string;
+  message: string;
+  percentage: number;
+}
+
+export type ProgressCallback = (update: ProgressUpdate) => void;
+
 export class TranscriptPipeline {
   private ldClient: LaunchDarklyAIConfigClient;
   private vercelClient: VercelAIClient;
@@ -42,10 +57,31 @@ export class TranscriptPipeline {
 
   async processTranscript(
     transcriptFile: TranscriptFile,
-    transcriptId: string
+    transcriptId: string,
+    onProgress?: ProgressCallback,
+    current?: number,
+    total?: number
   ): Promise<ExtractionResult> {
     try {
+      // Validate file has sufficient content for analysis
+      if (!transcriptFile.content || transcriptFile.content.trim().length === 0) {
+        throw new Error("File is empty or contains no text");
+      }
+      if (transcriptFile.content.trim().length < 50) {
+        throw new Error("File content too short for analysis (minimum 50 characters)");
+      }
+
       // STAGE 1: CLASSIFICATION
+      if (onProgress && current !== undefined && total !== undefined) {
+        onProgress({
+          type: 'classification',
+          current,
+          total,
+          filename: transcriptFile.name,
+          message: `Classifying ${transcriptFile.name}...`,
+          percentage: Math.round(((current - 1) / total) * 100)
+        });
+      }
       const classificationContext = createContext(transcriptId, "transcript");
       const classificationConfig = await this.ldClient.getAIConfig(
         "transcript-classification",
@@ -84,12 +120,12 @@ export class TranscriptPipeline {
 
       console.log("Classification result:", JSON.stringify(classification, null, 2));
 
-      // Validate classification response
+      // Validate classification returned structured data
       if (!classification || typeof classification !== 'object') {
         throw new Error("Classification failed to return valid response");
       }
 
-      // Determine variation from classification
+      // Determine which extraction variation (A-F) to use
       const primaryVariation =
         classification.primary_variation ||
         getVariationForCategory(classification.call_category);
@@ -98,10 +134,20 @@ export class TranscriptPipeline {
         console.warn("⚠️  No variation could be determined from classification, defaulting to 'B'");
       }
 
-      const finalVariation = primaryVariation || "B"; // Default to B (Discovery) if no variation found
+      const finalVariation = primaryVariation || "B"; // Default to Variation B (Discovery)
       console.log("Primary variation determined:", finalVariation);
 
       // STAGE 2: FEATURE EXTRACTION
+      if (onProgress && current !== undefined && total !== undefined) {
+        onProgress({
+          type: 'extraction',
+          current,
+          total,
+          filename: transcriptFile.name,
+          message: `Extracting features from ${transcriptFile.name}...`,
+          percentage: Math.round(((current - 0.5) / total) * 100)
+        });
+      }
       const extractionContext = createContext(transcriptId, "transcript", {
         variation_hint: finalVariation,
         call_category: classification.call_category,
@@ -143,7 +189,7 @@ export class TranscriptPipeline {
         jsonSchema: extractionSchema,
       });
 
-      // Add metadata
+      // Combine extracted features with metadata
       const result = {
         source_file: transcriptFile.name,
         ...features,
@@ -164,16 +210,28 @@ export class TranscriptPipeline {
         },
       };
     } catch (error) {
+      // Translate technical errors into user-friendly messages
+      let errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
+        errorMessage = "Request timed out - file may be too large or service unavailable";
+      } else if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
+        errorMessage = "Network error - please check your connection";
+      } else if (errorMessage.includes("API key") || errorMessage.includes("unauthorized")) {
+        errorMessage = "Authentication error - please check API credentials";
+      }
+
       return {
         filename: transcriptFile.name,
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       };
     }
   }
 
   async processMultiple(
-    transcripts: TranscriptFile[]
+    transcripts: TranscriptFile[],
+    onProgress?: ProgressCallback
   ): Promise<ExtractionResult[]> {
     const results: ExtractionResult[] = [];
 
@@ -183,13 +241,50 @@ export class TranscriptPipeline {
 
       console.log(`[${i + 1}/${transcripts.length}] Processing ${transcript.name}...`);
 
-      const result = await this.processTranscript(transcript, transcriptId);
+      if (onProgress) {
+        onProgress({
+          type: 'start',
+          current: i + 1,
+          total: transcripts.length,
+          filename: transcript.name,
+          message: `Starting ${transcript.name}...`,
+          percentage: Math.round((i / transcripts.length) * 100)
+        });
+      }
+
+      const result = await this.processTranscript(
+        transcript,
+        transcriptId,
+        onProgress,
+        i + 1,
+        transcripts.length
+      );
       results.push(result);
 
       if (result.success) {
         console.log(`  ✓ Success - Variation ${result.classification?.variation}`);
+        if (onProgress) {
+          onProgress({
+            type: 'complete',
+            current: i + 1,
+            total: transcripts.length,
+            filename: transcript.name,
+            message: `Completed ${transcript.name}`,
+            percentage: Math.round(((i + 1) / transcripts.length) * 100)
+          });
+        }
       } else {
         console.log(`  ✗ Failed: ${result.error}`);
+        if (onProgress) {
+          onProgress({
+            type: 'error',
+            current: i + 1,
+            total: transcripts.length,
+            filename: transcript.name,
+            message: `Failed: ${result.error}`,
+            percentage: Math.round(((i + 1) / transcripts.length) * 100)
+          });
+        }
       }
     }
 

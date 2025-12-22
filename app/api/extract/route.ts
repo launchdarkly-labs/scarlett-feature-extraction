@@ -1,3 +1,15 @@
+/**
+ * Legacy Non-Streaming Extraction Endpoint
+ *
+ * This endpoint processes transcripts without real-time progress updates.
+ * For progress tracking, use /api/extract-stream instead (recommended).
+ *
+ * This endpoint is kept for:
+ * - Backwards compatibility
+ * - Testing without SSE
+ * - Clients that don't support Server-Sent Events
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { TranscriptPipeline } from "@/lib/pipeline";
 import Papa from "papaparse";
@@ -24,7 +36,7 @@ export async function POST(request: NextRequest) {
       }))
     );
 
-    // Initialize and run pipeline
+    // Initialize pipeline and process without progress callbacks
     const pipeline = new TranscriptPipeline();
     await pipeline.initialize();
 

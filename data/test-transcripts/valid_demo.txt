@@ -1,0 +1,28 @@
+Sales Call Transcript - Product Demo
+
+Date: December 22, 2025
+Salesperson: Emily Chen
+Company: GlobalTech Inc
+
+[00:00:01] Emily: Thanks for joining the demo today! I'm excited to show you our platform.
+
+[00:00:05] Customer: Thanks for having me. We're really interested in seeing how this integrates with our existing CRM.
+
+[00:00:10] Emily: Perfect! Let me share my screen. As you can see, our dashboard provides real-time analytics...
+
+[00:15:30] Customer: This looks really promising. The integration seems seamless. What about pricing?
+
+[00:15:35] Emily: Great question. For an organization your size, we're looking at approximately $50,000 annually. That includes full support and training.
+
+[00:15:45] Customer: That's within our budget range. We need to present this to the executive team.
+
+[00:15:50] Emily: Absolutely. I'll send you a proposal document and some case studies. When would you like to schedule a follow-up?
+
+[00:16:00] Customer: Let's aim for two weeks from now, after our executive review.
+
+Call Type: Demo
+Deal Stage: Evaluation
+Estimated Deal Value: $50,000
+Customer Engagement: Very Positive
+Decision Makers: Executive team
+Next Steps: Proposal sent, follow-up in 2 weeks
