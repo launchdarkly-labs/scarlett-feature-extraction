@@ -101,6 +101,19 @@ class SalesTranscriptBootstrap:
             print(f"   ❌ Failed to create tool: {response.text[:200]}")
             return None
 
+    def validate_tool_schema(self, tool_schema, required_core_fields):
+        """Validate that a tool schema contains all required core fields"""
+        if "parameters" not in tool_schema or "properties" not in tool_schema["parameters"]:
+            return False, "Missing parameters or properties"
+
+        properties = tool_schema["parameters"]["properties"]
+        missing_fields = set(required_core_fields) - set(properties.keys())
+
+        if missing_fields:
+            return False, f"Missing core fields: {missing_fields}"
+
+        return True, "OK"
+
     def create_variation(self, config_key, variation_data):
         """Create a variation in an AI Config"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-configs/{config_key}/variations"
@@ -279,6 +292,27 @@ def main():
         tool_schema=class_tool["parameters"]
     )
 
+    # Define mandatory core fields for validation
+    CORE_FIELDS_MANDATORY = [
+        'transcript_id',
+        'overall_sentiment_score',
+        'sentiment_about_product',
+        'sentiment_about_pricing',
+        'sentiment_trajectory',
+        'customer_engagement_score',
+        'urgency_score',
+        'budget_confidence_score',
+        'next_steps_defined',
+        'competitors_mentioned',
+        'decision_makers_present',
+        'transcript_word_count',
+        'customer_word_count',
+        'customer_question_count',
+        'technical_term_count',
+        'pricing_mention_count',
+        'competitor_mention_count'
+    ]
+
     # Create extraction tools for each variation
     # Get core fields to merge into each variation
     core_fields = tools_data["core_fields_schema"]
@@ -303,6 +337,12 @@ def main():
             "properties": merged_properties,
             "required": tool_func["parameters"]["required"]
         }
+
+        # Validate schema has all mandatory core fields
+        is_valid, message = bootstrap.validate_tool_schema(tool_func, CORE_FIELDS_MANDATORY)
+        if not is_valid:
+            print(f"   ⚠️  WARNING: Variation {var_letter} - {message}")
+            print(f"   Continuing anyway, but this may cause ML model issues...")
 
         bootstrap.create_tool(
             tool_key=tool_key,

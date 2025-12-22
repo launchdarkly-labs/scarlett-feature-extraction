@@ -85,7 +85,7 @@
     }
   },
 
-  "core_fields_note": "These 33 core fields MUST be included in ALL variation tools (A-F) for consistent reporting",
+  "core_fields_note": "These 40 core fields MUST be included in ALL variation tools (A-F) for consistent reporting and optimal ML model performance",
 
   "core_fields_schema": {
     "transcript_id": {"type": "string", "description": "Unique identifier for this call transcript"},
@@ -108,6 +108,7 @@
     "sentiment_about_competitors": {"type": "number", "minimum": -1, "maximum": 1, "description": "Sentiment about competitor solutions from -1 to +1"},
     "sentiment_about_market_conditions": {"type": "number", "minimum": -1, "maximum": 1, "description": "Sentiment about economy/market conditions from -1 (pessimistic) to +1 (optimistic)"},
     "sentiment_about_current_solution": {"type": "number", "minimum": -1, "maximum": 1, "description": "Sentiment about their current solution from -1 (very unhappy) to +1 (very satisfied)"},
+    "sentiment_trajectory": {"type": "string", "enum": ["improving", "stable", "declining", "unknown"], "description": "Sentiment trend compared to previous calls if mentioned in transcript. Look for phrases like 'more comfortable now' (improving), 'concerns addressed' (improving), 'still concerned' (declining), 'not convinced' (declining). If no historical context, return 'unknown'."},
     "customer_engagement_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Engagement from 0 (disengaged) to 1 (highly engaged)"},
     "urgency_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Urgency from 0 (no urgency) to 1 (immediate need)"},
     "budget_confidence_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Confidence budget is available from 0 (no budget) to 1 (confirmed budget)"},
@@ -120,6 +121,12 @@
     "churn_risk_signals": {"type": "boolean", "description": "Whether any churn/at-risk signals were detected"},
     "decision_makers_present": {"type": "boolean", "description": "Whether decision makers were present on the call"},
     "total_participants": {"type": "integer", "description": "Total number of participants on the call"},
+    "transcript_word_count": {"type": "integer", "minimum": 0, "maximum": 50000, "description": "Total number of words in the transcript"},
+    "customer_word_count": {"type": "integer", "minimum": 0, "maximum": 50000, "description": "Estimated number of words spoken by customer (exclude salesperson words)"},
+    "customer_question_count": {"type": "integer", "minimum": 0, "maximum": 500, "description": "Number of questions asked by customer. Count explicit questions with '?' or question phrases like 'How does...?', 'What about...?', 'Can you explain...?'. Do NOT count rhetorical statements."},
+    "technical_term_count": {"type": "integer", "minimum": 0, "maximum": 500, "description": "Count of technical terms mentioned including: Infrastructure (API, SDK, integration, webhook, database), Security (authentication, encryption, SSO, SAML, OAuth), Architecture (microservices, scalability, redundancy, failover), Deployment (cloud, on-premise, hybrid, containerization). Count each unique term once."},
+    "pricing_mention_count": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Number of times pricing, cost, budget, or money was explicitly mentioned"},
+    "competitor_mention_count": {"type": "integer", "minimum": 0, "maximum": 50, "description": "Number of times competitor names or alternative solutions were mentioned"},
     "classification_model_used": {"type": "string", "description": "Model used for classification"},
     "extraction_model_used": {"type": "string", "description": "Model used for extraction"},
     "extraction_timestamp": {"type": "string", "description": "ISO timestamp when extraction was performed"}
