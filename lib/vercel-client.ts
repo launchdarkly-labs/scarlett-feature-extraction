@@ -34,6 +34,9 @@ export class VercelAIClient {
   }): Promise<any> {
     const { transcript, model, systemPrompt, temperature = 0, jsonSchema } = params;
 
+    console.log(`Calling Vercel AI Gateway with model: ${model}`);
+    console.log(`Schema has ${Object.keys(jsonSchema.properties || {}).length} properties`);
+
     try {
       const response = await this.client.beta.chat.completions.parse({
         model,
@@ -50,11 +53,17 @@ export class VercelAIClient {
           },
         },
         temperature,
+        timeout: 30000, // 30 second timeout
       });
 
+      console.log("Extraction successful");
       return response.choices[0].message.parsed;
-    } catch (error) {
-      throw new Error(`Feature extraction failed: ${error}`);
+    } catch (error: any) {
+      console.error("Extraction error:", error.message || error);
+      if (error.response) {
+        console.error("API Response:", error.response.status, error.response.data);
+      }
+      throw new Error(`Feature extraction failed: ${error.message || error}`);
     }
   }
 
@@ -82,23 +91,29 @@ Return all information in the structured format provided.`;
 
 export function mapLDToVercelModel(ldModelName: string): string {
   const modelMapping: Record<string, string> = {
+    // Google models - map to actual available models
+    "gemini-2.5-flash": "google/gemini-2.5-flash",
+    "gemini-2.5-pro": "google/gemini-2.5-pro",
+    "gemini-2.0-flash": "google/gemini-2.0-flash",
+
     // Anthropic models
-    "claude-sonnet-4.5": "anthropic/claude-sonnet-4.5",
-    "claude-sonnet-4": "anthropic/claude-sonnet-4",
-    "Anthropic.claude-3-7-sonnet-latest": "anthropic/claude-3-7-sonnet-latest",
+    "claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
+    "claude-3.5-haiku": "anthropic/claude-3.5-haiku",
+    "claude-3-haiku": "anthropic/claude-3-haiku",
+    "claude-3-opus": "anthropic/claude-3-opus",
 
     // OpenAI models
     "gpt-4o": "openai/gpt-4o",
     "gpt-4o-mini": "openai/gpt-4o-mini",
-
-    // Google models - map to what's actually available in Vercel AI Gateway
-    "Gemini.gemini-1.5-flash-002": "google/gemini-2.0-flash",
-    "Gemini.gemini-1.5-pro-002": "google/gemini-2.5-flash",
-    "gemini-1.5-flash-002": "google/gemini-2.0-flash",
-    "gemini-1.5-pro-002": "google/gemini-2.5-flash",
+    "gpt-4-turbo": "openai/gpt-4-turbo",
+    "gpt-3.5-turbo": "openai/gpt-3.5-turbo",
 
     // DeepSeek models
     "deepseek-v3": "deepseek/deepseek-v3",
+    "deepseek-v3.2": "deepseek/deepseek-v3.2",
+    "deepseek-r1": "deepseek/deepseek-r1",
+
+    // Add other specific models as needed
   };
 
   // If already in Vercel format (has /), return as-is

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     if (useDemo) {
       // Use demo synthetic data
-      command = "python3 ml/train_and_return_metrics.py --demo --samples 500";
+      command = "source venv/bin/activate && python ml/train_and_return_metrics.py --demo --samples 500";
     } else if (csvFile) {
       // Save uploaded CSV to temp file
       const bytes = await csvFile.arrayBuffer();
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       tempFilePath = path.join(tmpdir(), `training_data_${Date.now()}.csv`);
       await writeFile(tempFilePath, buffer);
 
-      command = `python3 ml/train_and_return_metrics.py --csv "${tempFilePath}"`;
+      command = `source venv/bin/activate && python ml/train_and_return_metrics.py --csv "${tempFilePath}"`;
     } else {
       return NextResponse.json(
         { error: "Either useDemo=true or csvFile must be provided" },
@@ -44,10 +44,11 @@ export async function POST(request: NextRequest) {
 
     console.log("Running command:", command);
 
-    // Execute Python script
+    // Execute Python script with bash shell
     const { stdout, stderr } = await execPromise(command, {
       cwd: process.cwd(),
       timeout: 120000, // 2 minute timeout
+      shell: "/bin/bash",
     });
 
     // Clean up temp file if created

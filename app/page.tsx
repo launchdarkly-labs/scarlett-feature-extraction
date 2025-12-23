@@ -223,12 +223,20 @@ export default function Home() {
           totalUrgency += parseFloat(row['urgency_score'] || '0');
           nextStepsDefined += row['next_steps_defined'] === 'true' || row['next_steps_defined'] === '1' ? 1 : 0;
           competitorsMentioned += row['competitors_mentioned'] === 'true' || row['competitors_mentioned'] === '1' ? 1 : 0;
-          totalWordCount += parseInt(row['transcript_word_count'] || '0');
-          totalQuestions += parseInt(row['customer_question_count'] || '0');
+          // Handle different possible field names for word count
+          const wordCount = row['transcript_word_count'] || row['text_word_count'] || row['word_count'];
+          totalWordCount += parseInt(wordCount || '0');
+
+          // Handle question count field
+          const questionCount = row['customer_question_count'] || row['question_count'];
+          totalQuestions += parseInt(questionCount || '0');
 
           const traj = row['sentiment_trajectory'] || 'unknown';
-          if (traj in sentimentTraj) {
+          // Ensure we count every transcript - if the value isn't recognized, count it as unknown
+          if (traj === 'improving' || traj === 'stable' || traj === 'declining') {
             sentimentTraj[traj as keyof typeof sentimentTraj]++;
+          } else {
+            sentimentTraj.unknown++;
           }
         });
 
@@ -532,10 +540,12 @@ export default function Home() {
                   <span className="text-gray-600">Competitors Mentioned:</span>
                   <span className="font-semibold text-gray-900">{extractionStats.competitors_mentioned_pct.toFixed(0)}%</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Avg Transcript Length:</span>
-                  <span className="font-semibold text-gray-900">{extractionStats.avg_word_count.toFixed(0)} words</span>
-                </div>
+                {extractionStats.avg_word_count > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Avg Transcript Length:</span>
+                    <span className="font-semibold text-gray-900">{extractionStats.avg_word_count.toFixed(0)} words</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Avg Customer Questions:</span>
                   <span className="font-semibold text-gray-900">{extractionStats.avg_questions.toFixed(1)}</span>
@@ -561,7 +571,7 @@ export default function Home() {
               ML Model Demo
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Train a two-stage deal prediction model and view impressive metrics
+              Train a two-stage deal prediction model - Summary
             </p>
           </div>
           <button

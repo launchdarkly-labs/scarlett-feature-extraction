@@ -2,23 +2,31 @@
 
 AI-powered sales call analysis using **Vercel AI Gateway** and **LaunchDarkly AI Configs**.
 
-Upload transcripts → Get structured CSV with sentiment, business context, and call-specific insights.
+Upload transcripts → Get structured CSV with sentiment, business context, and call-specific insights. Includes ML model training for deal prediction using CatBoost.
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Install
+# 1. Install Node dependencies
 npm install
 
-# 2. Configure .env
-AI_GATEWAY_API_KEY=your-vercel-api-key
+# 2. Setup Python environment (for ML model)
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt  # or manually: pip install catboost scikit-learn pandas numpy joblib requests python-dotenv
 
-# 3. Setup LaunchDarkly (one-time)
+# 3. Configure .env
+VERCEL_OIDC_TOKEN=your-vercel-oidc-token  # Get via: npx vercel env pull
+# or AI_GATEWAY_API_KEY=your-vercel-api-key
+LAUNCHDARKLY_SDK_KEY=sdk-xxxxx
+
+# 4. Setup LaunchDarkly (one-time)
+source venv/bin/activate
 python bootstrap/create_configs.py
 
-# 4. Run
+# 5. Run
 npm run dev
 # → http://localhost:3000
 ```
@@ -32,32 +40,33 @@ npm run dev
 ```
 Upload Transcripts
     ↓
-Stage 1: Classification (Gemini Flash, $0.0007/call)
+Stage 1: Classification (Gemini 2.5 Flash)
     → Determines call type + routes to variation A-F
     ↓
-Stage 2: Feature Extraction (Gemini/Claude, $0.001-$0.03/call)
-    → Extracts 33-63 fields based on call type
+Stage 2: Feature Extraction (Gemini 2.5 Pro / Claude 3.5 Sonnet)
+    → Extracts 52-72 fields based on call type
     ↓
 Download CSV
 ```
 
 ### 6 Variations (A-F)
 
-| Variation | Type | Fields | Model | Cost | Example |
-|-----------|------|--------|-------|------|---------|
-| **A** | Prospecting | 43 | Gemini Flash | $0.001 | Cold outreach |
-| **B** | Discovery | 48 | Gemini Pro | $0.01 | BANT qualification |
-| **C** | Demo | 58 | Claude Sonnet 4 | $0.03 | Product demos |
-| **D** | Proposal | 53 | Claude Sonnet 4 | $0.03 | Pricing negotiation |
-| **E** | Technical | 63 | Claude Sonnet 4 | $0.03 | Architecture review |
-| **F** | Customer Success | 53 | Gemini Pro | $0.01 | QBRs, renewals |
+| Variation | Type | Core + Specific | Total Fields | Model | Example |
+|-----------|------|-----------------|--------------|-------|---------|
+| **A** | Prospecting | 42 + 10 | 52 | Gemini 2.5 Flash | Cold outreach, connection attempts |
+| **B** | Discovery | 42 + 15 | 57 | Gemini 2.5 Pro | BANT qualification, pain points |
+| **C** | Demo | 42 + 25 | 67 | Claude 3.5 Sonnet | Product demos, feature showcase |
+| **D** | Proposal | 42 + 20 | 62 | Claude 3.5 Sonnet | Pricing negotiation, terms |
+| **E** | Technical | 42 + 30 | 72 | Claude 3.5 Sonnet | Architecture review, integrations |
+| **F** | Customer Success | 42 + 20 | 62 | Gemini 2.5 Pro | QBRs, renewals, upsells |
 
-**Core Fields** (all variations):
-- **Identity**: transcript_id, customer_company_name, salesperson_name
-- **Business**: deal_stage, customer_size, industry, estimated_deal_value
-- **Sentiment** (all -1 to +1): overall, product, pricing, competitors, market_conditions, current_solution
+**Core Fields** (42 fields in all variations):
+- **Identity**: transcript_id, customer_company_name, salesperson_name, call_date, call_time
+- **Business**: deal_stage, customer_size, industry, estimated_deal_value, call_category
+- **Sentiment** (all -1 to +1): overall_sentiment_score, sentiment_about_product, sentiment_about_pricing, sentiment_about_competitors, sentiment_about_market_conditions, sentiment_about_current_solution, sentiment_trajectory
 - **Engagement**: customer_engagement_score, urgency_score, budget_confidence_score
-- **Signals**: next_steps_defined, timeline_mentioned, competitors_mentioned
+- **Text Statistics**: transcript_word_count, customer_word_count, customer_question_count, technical_term_count, pricing_mention_count, competitor_mention_count
+- **Signals**: next_steps_defined, competitors_mentioned, decision_makers_present, churn_risk_signals
 
 **Benefit**: Track customer journey across different call types.
 
@@ -90,8 +99,10 @@ LAUNCHDARKLY_SDK_KEY=sdk-xxxxx
 LD_API_KEY=api-xxxxx           # For bootstrap only
 LD_PROJECT_KEY=your-project    # For bootstrap only
 
-# Vercel AI Gateway
-AI_GATEWAY_API_KEY=your-vercel-api-key
+# Vercel AI Gateway (choose one)
+VERCEL_OIDC_TOKEN=eyJhbGc...   # Preferred - get via: npx vercel env pull
+# or
+AI_GATEWAY_API_KEY=vck_xxxxx    # Alternative - from Vercel dashboard
 ```
 
 ---
@@ -103,6 +114,8 @@ AI_GATEWAY_API_KEY=your-vercel-api-key
 ```bash
 npm run dev
 ```
+
+#### Feature Extraction
 
 1. Upload .txt or .md transcripts (select folder)
 2. (Optional) Customize output filename
@@ -120,6 +133,19 @@ npm run dev
 - ✅ Per-file error reporting (batch continues on failures)
 - ✅ Empty file detection and validation
 - ✅ Handles UTF-8, special characters, and large files
+- ✅ Summary metrics display after extraction (average sentiment, deal velocity, etc.)
+
+#### ML Model Training (CatBoost Zero-Inflated Model)
+
+1. After extracting features, click "Train Model" in the ML Model section
+2. Choose either:
+   - **Use Demo Data**: Generates synthetic data for testing (500 samples)
+   - **Use Extracted Data**: Uses your actual extracted CSV
+3. View model performance metrics:
+   - **Stage 1 (Deal/No Deal)**: Precision, Recall, F1-Score
+   - **Stage 2 (Deal Size)**: RMSE, R², Mean Absolute Percentage Error
+   - **Overall Accuracy** and **Feature Importance**
+4. Model is saved as `deal_model.pkl` for production use
 
 ### Deploy to Vercel
 

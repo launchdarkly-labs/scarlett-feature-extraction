@@ -122,6 +122,7 @@ export async function extractJSONSchemaFromTools(
     // Check if tool has the schema directly (LaunchDarkly structure)
     if (tool.parameters) {
       console.log("Returning schema from tool.parameters");
+      console.log("Schema properties:", Object.keys(tool.parameters.properties || {}));
       return tool.parameters;
     }
 
@@ -153,9 +154,11 @@ export async function extractJSONSchemaFromTools(
 
       if (response.ok) {
         const toolData = await response.json();
+        console.log(`Tool ${tool.key} fetched, properties:`, Object.keys(toolData.schema?.properties || {}));
         return toolData.schema;
       } else {
         console.error(`Failed to fetch tool ${tool.key}: ${response.statusText}`);
+        console.error(`Response status: ${response.status}`);
         return null;
       }
     }

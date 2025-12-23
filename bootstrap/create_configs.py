@@ -331,15 +331,18 @@ def main():
         tool_func = tools_data[schema_key]["function"]
 
         # Merge core fields + variation-specific fields
+        # Core fields should come first, then variation-specific fields
         merged_properties = {**core_fields, **tool_func["parameters"]["properties"]}
+
+        # Use the required fields from the variation (which already includes core fields)
         merged_schema = {
             "type": "object",
             "properties": merged_properties,
             "required": tool_func["parameters"]["required"]
         }
 
-        # Validate schema has all mandatory core fields
-        is_valid, message = bootstrap.validate_tool_schema(tool_func, CORE_FIELDS_MANDATORY)
+        # Validate merged schema has all mandatory core fields
+        is_valid, message = bootstrap.validate_tool_schema({"parameters": merged_schema}, CORE_FIELDS_MANDATORY)
         if not is_valid:
             print(f"   ⚠️  WARNING: Variation {var_letter} - {message}")
             print(f"   Continuing anyway, but this may cause ML model issues...")
@@ -372,7 +375,7 @@ def main():
 
 Be accurate and concise. Output structured data only.""",
             "tools": ["classify_transcript"],
-            "modelConfigKey": "Gemini.gemini-1.5-flash-002"
+            "modelConfigKey": "gemini-2.5-flash"
         },
         {
             "key": "accurate",
@@ -386,7 +389,7 @@ Be accurate and concise. Output structured data only.""",
 
 Prioritize accuracy over speed.""",
             "tools": ["classify_transcript"],
-            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
+            "modelConfigKey": "gemini-2.5-pro"
         }
     ]
 
@@ -408,7 +411,7 @@ Prioritize accuracy over speed.""",
 
 Be precise and evidence-based.""",
             "tools": ["extract_prospecting_features"],
-            "modelConfigKey": "Gemini.gemini-1.5-flash-002"
+            "modelConfigKey": "gemini-2.5-flash"
         },
         {
             "key": "variation-b",
@@ -421,7 +424,7 @@ Be precise and evidence-based.""",
 
 Focus on qualification signals.""",
             "tools": ["extract_discovery_features"],
-            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
+            "modelConfigKey": "gemini-2.5-pro"
         },
         {
             "key": "variation-c",
@@ -435,7 +438,7 @@ Focus on qualification signals.""",
 
 Assess demo effectiveness.""",
             "tools": ["extract_demo_features"],
-            "modelConfigKey": "Anthropic.claude-3-7-sonnet-latest"
+            "modelConfigKey": "claude-3.5-sonnet"
         },
         {
             "key": "variation-d",
@@ -449,7 +452,7 @@ Assess demo effectiveness.""",
 
 Focus on deal closing signals.""",
             "tools": ["extract_proposal_features"],
-            "modelConfigKey": "Anthropic.claude-3-7-sonnet-latest"
+            "modelConfigKey": "claude-3.5-sonnet"
         },
         {
             "key": "variation-e",
@@ -463,7 +466,7 @@ Focus on deal closing signals.""",
 
 Assess technical fit and risk.""",
             "tools": ["extract_technical_features"],
-            "modelConfigKey": "Anthropic.claude-3-7-sonnet-latest"
+            "modelConfigKey": "claude-3.5-sonnet"
         },
         {
             "key": "variation-f",
@@ -477,7 +480,7 @@ Assess technical fit and risk.""",
 
 Focus on retention signals.""",
             "tools": ["extract_customer_success_features"],
-            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
+            "modelConfigKey": "gemini-2.5-pro"
         }
     ]
 
