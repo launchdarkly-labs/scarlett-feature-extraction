@@ -1,0 +1,71 @@
+Product Demo Call Transcript
+Date: December 21, 2024
+Participants: Alex (Sales Engineer), Jennifer (Customer - Director of Operations), David (Customer - Technical Lead)
+
+Alex: Welcome everyone! Thanks for joining today's demo. Jennifer and David, I understand you've already spoken with Sarah about your requirements?
+
+Jennifer: Yes, we had a great discovery call. We're excited to see the platform in action.
+
+Alex: Excellent. Let me share my screen. Can everyone see my dashboard?
+
+David: Yes, we can see it clearly.
+
+Alex: Perfect. So this is our main extraction interface. As you can see, you can upload transcripts in bulk or integrate via API. Let me show you a real example.
+
+Jennifer: How long does extraction typically take?
+
+Alex: For a standard transcript, about 3-5 seconds. We process them in parallel, so 100 transcripts would take maybe 30 seconds total. Let me run one now.
+
+David: I notice you're extracting sentiment scores. How accurate is that?
+
+Alex: Very accurate. We use structured output from the LLMs which enforces the schema. See these fields here? Overall sentiment, product sentiment, pricing sentiment - all normalized between -1 and 1.
+
+Jennifer: Can we customize what fields get extracted?
+
+Alex: Absolutely! This is the powerful part. Let me show you our configuration interface. You can add any field you want - no code changes needed. Just update the schema here and it's live globally in seconds.
+
+David: That's impressive. What about different types of documents? We have support tickets too.
+
+Alex: Great question. You can create different extraction schemas for different document types. Support tickets might extract urgency level, issue category, resolution status - completely different from sales calls.
+
+Jennifer: What models are you using behind the scenes?
+
+Alex: We support multiple providers - GPT-4, Claude, Gemini. You can switch between them easily. Some customers use GPT-4 for complex extractions and Gemini for simpler ones to optimize cost.
+
+David: How does the integration work with our existing systems?
+
+Alex: We have REST APIs and webhooks. Most customers either push transcripts to us via API or connect their cloud storage. The extracted data can go directly to your data warehouse or CRM.
+
+Jennifer: This is starting to make a lot of sense. What about monitoring and analytics?
+
+Alex: Let me show you the analytics dashboard. You can track extraction volumes, see performance metrics, monitor costs by model, and set up alerts for anomalies.
+
+David: I'm concerned about our sensitive customer data. How do you handle security?
+
+Alex: All data is encrypted in transit and at rest. We're SOC 2 certified, and you can configure the system so data never leaves your region. For your European customers, we can ensure GDPR compliance.
+
+Jennifer: What's the typical implementation timeline?
+
+Alex: Most customers are up and running in a week. The technical integration is usually done in a day or two, then it's about fine-tuning your extraction schemas based on your specific needs.
+
+David: Can we run a proof of concept with our actual data?
+
+Alex: Absolutely. We can set up a trial environment where you can test with your real transcripts. You'll see exactly what gets extracted and can tweak the schemas as needed.
+
+Jennifer: That sounds perfect. What are the next steps?
+
+Alex: I'll send you trial access credentials after this call. You can start testing immediately. We also offer implementation support to help you get the most value quickly.
+
+David: One more technical question - how do you handle errors or failed extractions?
+
+Alex: Good question. We have automatic retries, fallback models, and detailed error logging. If a transcript fails, you'll know exactly why and can adjust accordingly.
+
+Jennifer: This has been really helpful. I think we'd definitely like to move forward with the trial.
+
+Alex: Excellent! I'll get that set up for you today. Any other questions?
+
+David: Not right now. This covered what we needed to see.
+
+Jennifer: Agreed. Thanks for the thorough demo, Alex.
+
+Alex: My pleasure! I'll send the follow-up email with your trial details and some documentation to help you get started. Looking forward to seeing what you build with it!

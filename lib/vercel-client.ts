@@ -90,30 +90,32 @@ Return all information in the structured format provided.`;
 }
 
 export function mapLDToVercelModel(ldModelName: string): string {
+  // Simple direct mapping for models that exist in both LaunchDarkly and Vercel
   const modelMapping: Record<string, string> = {
-    // Google models - map to actual available models
-    "gemini-2.5-flash": "google/gemini-2.5-flash",
-    "gemini-2.5-pro": "google/gemini-2.5-pro",
-    "gemini-2.0-flash": "google/gemini-2.0-flash",
+    // LaunchDarkly format with provider prefix -> Vercel format
+    // Gemini models (using dots in version numbers)
+    "Gemini.gemini-2.0-flash": "google/gemini-2.0-flash",
+    "Gemini.gemini-1.5-flash-002": "google/gemini-1.5-flash",
+    "Gemini.gemini-1.5-pro-002": "google/gemini-1.5-pro",
 
-    // Anthropic models
-    "claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
-    "claude-3.5-haiku": "anthropic/claude-3.5-haiku",
-    "claude-3-haiku": "anthropic/claude-3-haiku",
-    "claude-3-opus": "anthropic/claude-3-opus",
+    // Anthropic Claude models
+    "Anthropic.claude-3-7-sonnet-latest": "anthropic/claude-3-5-sonnet-latest",
+    "Anthropic.claude-3-haiku-20240307": "anthropic/claude-3-haiku-20240307",
+    "Anthropic.claude-3-opus-20240229": "anthropic/claude-3-opus-20240229",
+    "Anthropic.claude-3-sonnet-20240229": "anthropic/claude-3-sonnet-20240229",
 
     // OpenAI models
-    "gpt-4o": "openai/gpt-4o",
-    "gpt-4o-mini": "openai/gpt-4o-mini",
-    "gpt-4-turbo": "openai/gpt-4-turbo",
-    "gpt-3.5-turbo": "openai/gpt-3.5-turbo",
+    "OpenAI.gpt-4o": "openai/gpt-4o",
+    "OpenAI.gpt-4o-mini": "openai/gpt-4o-mini",
+    "OpenAI.gpt-3-5-turbo": "openai/gpt-3.5-turbo",
 
-    // DeepSeek models
-    "deepseek-v3": "deepseek/deepseek-v3",
-    "deepseek-v3.2": "deepseek/deepseek-v3.2",
-    "deepseek-r1": "deepseek/deepseek-r1",
-
-    // Add other specific models as needed
+    // Also support without prefix for backward compatibility
+    "gemini-2-0-flash": "google/gemini-2.0-flash",
+    "gemini-1-5-flash-002": "google/gemini-1.5-flash",
+    "gemini-1-5-pro-002": "google/gemini-1.5-pro",
+    "claude-3-7-sonnet-latest": "anthropic/claude-3-5-sonnet-latest",
+    "claude-3-haiku-20240307": "anthropic/claude-3-haiku-20240307",
+    "claude-3-opus-20240229": "anthropic/claude-3-opus-20240229",
   };
 
   // If already in Vercel format (has /), return as-is

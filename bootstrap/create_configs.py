@@ -114,6 +114,7 @@ class SalesTranscriptBootstrap:
 
         return True, "OK"
 
+
     def create_variation(self, config_key, variation_data):
         """Create a variation in an AI Config"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-configs/{config_key}/variations"
@@ -136,9 +137,13 @@ class SalesTranscriptBootstrap:
                     "content": variation_data["instructions"]
                 }
             ],
-            "tools": tool_refs,
-            "modelConfigKey": variation_data.get("modelConfigKey")
+            "tools": tool_refs
         }
+
+        # Add modelConfigKey if provided
+        if variation_data.get("modelConfigKey"):
+            payload["modelConfigKey"] = variation_data["modelConfigKey"]
+            print(f"   Using modelConfigKey: {variation_data['modelConfigKey']}")
 
         print(f"   Creating variation '{variation_data['key']}'...")
         response = requests.post(url, headers=self.headers, json=payload, timeout=30)
@@ -365,7 +370,7 @@ def main():
     classification_variations = [
         {
             "key": "fast",
-            "name": "Fast Classification (Gemini 1.5 Flash)",
+            "name": "Fast Classification (Gemini Flash)",
             "instructions": """Analyze the sales call transcript and classify it:
 
 1. Determine call category (prospecting, discovery, demo, proposal, technical, customer success)
@@ -375,11 +380,11 @@ def main():
 
 Be accurate and concise. Output structured data only.""",
             "tools": ["classify_transcript"],
-            "modelConfigKey": "gemini-2.5-flash"
+            "modelConfigKey": "Gemini.gemini-2.0-flash"
         },
         {
             "key": "accurate",
-            "name": "Accurate Classification (Gemini 1.5 Pro)",
+            "name": "Accurate Classification (Claude Sonnet)",
             "instructions": """Analyze the sales call transcript with high accuracy:
 
 1. Precisely determine call category and stage
@@ -389,7 +394,7 @@ Be accurate and concise. Output structured data only.""",
 
 Prioritize accuracy over speed.""",
             "tools": ["classify_transcript"],
-            "modelConfigKey": "gemini-2.5-pro"
+            "modelConfigKey": "Anthropic.claude-3-7-sonnet-latest"
         }
     ]
 
@@ -411,7 +416,7 @@ Prioritize accuracy over speed.""",
 
 Be precise and evidence-based.""",
             "tools": ["extract_prospecting_features"],
-            "modelConfigKey": "gemini-2.5-flash"
+            "modelConfigKey": "Gemini.gemini-1.5-flash-002"
         },
         {
             "key": "variation-b",
@@ -424,7 +429,7 @@ Be precise and evidence-based.""",
 
 Focus on qualification signals.""",
             "tools": ["extract_discovery_features"],
-            "modelConfigKey": "gemini-2.5-pro"
+            "modelConfigKey": "Anthropic.claude-3-haiku-20240307"
         },
         {
             "key": "variation-c",
@@ -438,7 +443,7 @@ Focus on qualification signals.""",
 
 Assess demo effectiveness.""",
             "tools": ["extract_demo_features"],
-            "modelConfigKey": "claude-3.5-sonnet"
+            "modelConfigKey": "Gemini.gemini-2.0-flash"
         },
         {
             "key": "variation-d",
@@ -452,7 +457,7 @@ Assess demo effectiveness.""",
 
 Focus on deal closing signals.""",
             "tools": ["extract_proposal_features"],
-            "modelConfigKey": "claude-3.5-sonnet"
+            "modelConfigKey": "Anthropic.claude-3-opus-20240229"
         },
         {
             "key": "variation-e",
@@ -466,7 +471,7 @@ Focus on deal closing signals.""",
 
 Assess technical fit and risk.""",
             "tools": ["extract_technical_features"],
-            "modelConfigKey": "claude-3.5-sonnet"
+            "modelConfigKey": "Anthropic.claude-3-7-sonnet-latest"
         },
         {
             "key": "variation-f",
@@ -480,7 +485,7 @@ Assess technical fit and risk.""",
 
 Focus on retention signals.""",
             "tools": ["extract_customer_success_features"],
-            "modelConfigKey": "gemini-2.5-pro"
+            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
         }
     ]
 

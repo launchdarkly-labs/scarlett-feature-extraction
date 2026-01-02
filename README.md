@@ -1,12 +1,34 @@
 # Sales Call Transcript Extractor
 
-AI-powered sales call analysis using **Vercel AI Gateway** and **LaunchDarkly AI Configs**.
+**Transform sales call transcripts into actionable CSV data with AI-powered sentiment analysis, business insights, and deal prediction.**
 
-Upload transcripts → Get structured CSV with sentiment, business context, and call-specific insights. Includes ML model training for deal prediction using CatBoost.
+Built with **Vercel AI Gateway** and **LaunchDarkly AI Configs** for dynamic schema management and A/B testing. Includes ML model training for deal prediction using CatBoost.
+
+## What You Get
+
+📊 **52-72 structured data fields per call** including sentiment scores, deal signals, engagement metrics, and call-specific insights - all exportable as CSV for your CRM or analytics tools.
 
 ---
 
 ## Quick Start
+
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# 1. Configure environment variables
+cp .env.example .env  # Edit with your keys
+npx vercel env pull   # Get OIDC token
+
+# 2. Start all services
+docker-compose up
+
+# 3. Setup LaunchDarkly (one-time, in another terminal)
+docker-compose exec python sh -c ". /app/venv/bin/activate && python bootstrap/create_configs.py"
+
+# → http://localhost:3000
+```
+
+### Option 2: Manual Setup
 
 ```bash
 # 1. Install Node dependencies
@@ -30,6 +52,21 @@ python bootstrap/create_configs.py
 npm run dev
 # → http://localhost:3000
 ```
+
+---
+
+## Example Output
+
+From a discovery call transcript, get structured data like:
+
+```csv
+customer_company_name,deal_stage,overall_sentiment_score,urgency_score,budget_mentioned,estimated_deal_value,next_steps_defined
+"Acme Corp","Discovery",0.75,0.9,true,150000,"Schedule technical deep dive next Tuesday"
+"TechStart Inc","Demo",0.82,0.7,false,75000,"Send pricing proposal by EOW"
+```
+
+📁 **[View complete example →](examples/output/extracted-features.csv)**
+📝 **[Sample input transcripts →](examples/input/)**
 
 ---
 
@@ -156,6 +193,27 @@ vercel deploy
 Add environment variables in Vercel dashboard:
 - `LAUNCHDARKLY_SDK_KEY`
 - `AI_GATEWAY_API_KEY`
+
+### Docker Development
+
+The included `docker-compose.yml` provides a consistent development environment:
+
+```bash
+# Start all services (web app, Python environment, Redis cache)
+docker-compose up
+
+# Run commands in containers
+docker-compose exec web npm install new-package
+docker-compose exec python python bootstrap/create_configs.py
+
+# Stop services
+docker-compose down
+
+# Reset everything (including volumes)
+docker-compose down -v
+```
+
+**Note**: Docker Compose is for local development only. Vercel deployment uses their platform directly.
 
 ---
 

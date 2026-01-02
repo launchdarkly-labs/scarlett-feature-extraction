@@ -1,0 +1,47 @@
+Sales Discovery Call Transcript
+Date: December 20, 2024
+Participants: Sarah (Sales Rep), Mark (Customer - VP of Engineering at TechCorp)
+
+Sarah: Hi Mark, thanks for joining today's call. How are things going at TechCorp?
+
+Mark: Hi Sarah, things are good but busy. We're scaling rapidly and running into some challenges with our current infrastructure.
+
+Sarah: I see. Can you tell me more about what specific challenges you're facing?
+
+Mark: Well, our main issue is with data processing. We're handling about 10,000 customer transcripts per month now, and our current system takes forever to extract insights. We need something that can scale and give us real-time analytics.
+
+Sarah: That's exactly the type of problem we help companies solve. How are you currently extracting data from these transcripts?
+
+Mark: We have a patchwork of regex scripts and some basic NLP, but it's not cutting it anymore. We're missing important signals and it takes our team days to update extraction rules. Plus, we're looking at Gong for our sales team, but we need something that integrates with our data warehouse.
+
+Sarah: I understand. It sounds like you need both flexibility in what you extract and the ability to iterate quickly. What's your timeline for implementing a solution?
+
+Mark: We need something in place by end of Q1. Our board is pushing for better customer insights and we're launching into two new markets. The current approach won't scale.
+
+Sarah: That's a reasonable timeline. In terms of budget, have you allocated funds for this initiative?
+
+Mark: Yes, we have budget approved. We're looking at solutions in the $50-75k range annually, depending on capabilities. We've also looked at some competitors - we evaluated DataExtractPro and InsightEngine, but they seem too rigid for our needs.
+
+Sarah: I appreciate you sharing that. Our solution offers much more flexibility through runtime configuration. You can change extraction schemas instantly without any code deployment. Plus, we integrate seamlessly with your existing data infrastructure.
+
+Mark: That sounds promising. Can you handle different types of transcripts? We have sales calls, support tickets, and customer interviews.
+
+Sarah: Absolutely. Each type can have its own extraction schema, and you can A/B test different approaches to see what works best. We use AI models from multiple providers - OpenAI, Anthropic, Google - so you're not locked into one.
+
+Mark: Interesting. What about compliance? We have customers in Europe and healthcare.
+
+Sarah: We can route GDPR-region data differently and exclude any fields you specify. Everything is configurable through our management UI. Would you like to see a demo?
+
+Mark: Yes, definitely. Can we schedule something for next week? I'd like to bring in my head of data engineering as well.
+
+Sarah: Perfect. I'll send you some calendar options for next week. Before we wrap up, are there any other stakeholders who should be involved in the evaluation?
+
+Mark: Our CTO should probably be looped in for the final decision, but let's start with the demo for my team first.
+
+Sarah: Sounds great. I'll also send over a case study from a similar company in your space. They saw a 10x improvement in extraction speed and reduced their schema update time from weeks to minutes.
+
+Mark: That would be helpful. Thanks Sarah, looking forward to the demo.
+
+Sarah: Thank you Mark. I'll get that scheduled and send over the materials. Have a great rest of your day!
+
+Mark: You too, bye!

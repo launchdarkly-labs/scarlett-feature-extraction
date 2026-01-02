@@ -37,6 +37,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+!.env.example
 
 # vercel
 .vercel
@@ -47,3 +48,6 @@ next-env.d.ts
 
 # tutorial (moved to separate repo)
 TUTORIAL.md
+
+# scripts folder (local testing scripts)
+scripts/

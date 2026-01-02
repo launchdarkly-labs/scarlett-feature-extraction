@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Next.js web application
+  web:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY}
+      - AI_GATEWAY_API_KEY=${AI_GATEWAY_API_KEY}
+      - VERCEL_OIDC_TOKEN=${VERCEL_OIDC_TOKEN}
+    env_file:
+      - .env.local
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Python environment for ML model and bootstrap scripts
+  python:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+      - python-venv:/app/venv
+    environment:
+      - LD_API_KEY=${LD_API_KEY}
+      - LD_PROJECT_KEY=${LD_PROJECT_KEY}
+      - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY}
+      - AI_GATEWAY_API_KEY=${AI_GATEWAY_API_KEY}
+    env_file:
+      - .env
+    command: >
+      sh -c "
+        apt-get update && apt-get install -y gcc g++ &&
+        python -m venv /app/venv &&
+        . /app/venv/bin/activate &&
+        pip install --upgrade pip &&
+        pip install catboost scikit-learn pandas numpy joblib requests python-dotenv &&
+        tail -f /dev/null
+      "
+    networks:
+      - app-network
+
+  # Optional: Redis for caching (if you want to add caching later)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  python-venv:
+  redis-data:

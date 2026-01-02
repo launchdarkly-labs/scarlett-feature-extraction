@@ -1,0 +1,24 @@
+Sales Call Transcript - Prospecting Call
+
+Date: December 22, 2025
+Salesperson: John Smith
+Company: Acme Corp
+
+[00:00:01] John: Hi, this is John Smith from TechSolutions. Am I speaking with the IT director?
+
+[00:00:05] Customer: Yes, this is Sarah Johnson. What can I help you with?
+
+[00:00:08] John: Great! I'm reaching out because we help companies like Acme Corp improve their data infrastructure. I noticed you're currently using legacy systems. Would you be interested in learning how we've helped similar companies reduce costs by 40%?
+
+[00:00:20] Sarah: We've been thinking about upgrading, but we're not sure about the timeline or budget yet.
+
+[00:00:25] John: That's completely understandable. Many of our clients started in the same position. Would it make sense to schedule a quick 15-minute discovery call next week to explore if this might be a good fit?
+
+[00:00:35] Sarah: Sure, let's schedule something for Tuesday.
+
+[00:00:38] John: Perfect! I'll send you a calendar invite. Looking forward to speaking with you then.
+
+Call Type: Prospecting
+Deal Stage: Initial Contact
+Customer Engagement: Positive
+Next Steps: Discovery call scheduled for Tuesday
