@@ -20,7 +20,6 @@ interface ExtractionStats {
   competitors_mentioned_pct: number;
   avg_word_count: number;
   avg_questions: number;
-  sentiment_distribution: { improving: number; stable: number; declining: number; unknown: number };
 }
 
 interface ModelMetrics {
@@ -77,7 +76,6 @@ export default function Home() {
   const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null);
   const [showMetrics, setShowMetrics] = useState(false);
   const [extractionStats, setExtractionStats] = useState<ExtractionStats | null>(null);
-  const [showStats, setShowStats] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -115,6 +113,7 @@ export default function Home() {
       filename: ""
     });
     setError("");
+    setExtractionStats(null);  // Clear any previous stats when starting new extraction
 
     try {
       const formData = new FormData();
@@ -212,7 +211,6 @@ export default function Home() {
         let competitorsMentioned = 0;
         let totalWordCount = 0;
         let totalQuestions = 0;
-        const sentimentTraj = { improving: 0, stable: 0, declining: 0, unknown: 0 };
 
         parsedData.forEach(row => {
           const category = row['call_category'] || 'unknown';
@@ -231,13 +229,6 @@ export default function Home() {
           const questionCount = row['customer_question_count'] || row['question_count'];
           totalQuestions += parseInt(questionCount || '0');
 
-          const traj = row['sentiment_trajectory'] || 'unknown';
-          // Ensure we count every transcript - if the value isn't recognized, count it as unknown
-          if (traj === 'improving' || traj === 'stable' || traj === 'declining') {
-            sentimentTraj[traj as keyof typeof sentimentTraj]++;
-          } else {
-            sentimentTraj.unknown++;
-          }
         });
 
         const totalCalls = parsedData.length;
@@ -250,10 +241,8 @@ export default function Home() {
           next_steps_defined_pct: (nextStepsDefined / totalCalls) * 100,
           competitors_mentioned_pct: (competitorsMentioned / totalCalls) * 100,
           avg_word_count: totalWordCount / totalCalls,
-          avg_questions: totalQuestions / totalCalls,
-          sentiment_distribution: sentimentTraj
+          avg_questions: totalQuestions / totalCalls
         });
-        setShowStats(true);
 
         // Trigger CSV download with custom or generated filename
         const blob = new Blob([csvData], { type: "text/csv" });
@@ -271,6 +260,7 @@ export default function Home() {
       setTimeout(() => {
         setFiles([]);
         setProgressState(null);
+        // Don't clear stats here - let user dismiss manually
       }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -446,15 +436,14 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Extraction Statistics Visualization */}
-        {showStats && extractionStats && (
+        {extractionStats && extractionStats.total_calls > 0 && (
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 📊 Extraction Results
               </h3>
               <button
-                onClick={() => setShowStats(false)}
+                onClick={() => setExtractionStats(null)}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
                 Hide
@@ -502,29 +491,6 @@ export default function Home() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Sentiment Trajectory */}
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Sentiment Momentum</h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="text-2xl font-bold text-green-600">{extractionStats.sentiment_distribution.improving}</div>
-                  <div className="text-xs text-gray-600 mt-1">Improving ↗</div>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-2xl font-bold text-blue-600">{extractionStats.sentiment_distribution.stable}</div>
-                  <div className="text-xs text-gray-600 mt-1">Stable →</div>
-                </div>
-                <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="text-2xl font-bold text-orange-600">{extractionStats.sentiment_distribution.declining}</div>
-                  <div className="text-xs text-gray-600 mt-1">Declining ↘</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="text-2xl font-bold text-gray-600">{extractionStats.sentiment_distribution.unknown}</div>
-                  <div className="text-xs text-gray-600 mt-1">Unknown ?</div>
-                </div>
               </div>
             </div>
 

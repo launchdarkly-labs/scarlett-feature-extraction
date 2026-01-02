@@ -4,7 +4,7 @@ Participants: Alex (Sales Engineer), Jennifer (Customer - Director of Operations
 
 Alex: Welcome everyone! Thanks for joining today's demo. Jennifer and David, I understand you've already spoken with Sarah about your requirements?
 
-Jennifer: Yes, we had a great discovery call. We're excited to see the platform in action.
+Jennifer: Yes, we had a great discovery call. We're excited to see the platform in action. After our last conversation with Sarah, the team has been consistently positive about exploring this solution.
 
 Alex: Excellent. Let me share my screen. Can everyone see my dashboard?
 
@@ -36,7 +36,7 @@ David: How does the integration work with our existing systems?
 
 Alex: We have REST APIs and webhooks. Most customers either push transcripts to us via API or connect their cloud storage. The extracted data can go directly to your data warehouse or CRM.
 
-Jennifer: This is starting to make a lot of sense. What about monitoring and analytics?
+Jennifer: This is starting to make a lot of sense. What about monitoring and analytics? We've maintained our interest level throughout this demo - everything we're seeing aligns with what we discussed.
 
 Alex: Let me show you the analytics dashboard. You can track extraction volumes, see performance metrics, monitor costs by model, and set up alerts for anomalies.
 

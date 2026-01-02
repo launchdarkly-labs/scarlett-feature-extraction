@@ -93,13 +93,25 @@ export function mapLDToVercelModel(ldModelName: string): string {
   // Simple direct mapping for models that exist in both LaunchDarkly and Vercel
   const modelMapping: Record<string, string> = {
     // LaunchDarkly format with provider prefix -> Vercel format
-    // Gemini models (using dots in version numbers)
+    // Gemini models (exact keys from LaunchDarkly)
     "Gemini.gemini-2.0-flash": "google/gemini-2.0-flash",
+    "Gemini.gemini-1.5-flash-001": "google/gemini-1.5-flash",
     "Gemini.gemini-1.5-flash-002": "google/gemini-1.5-flash",
+    "Gemini.gemini-1.5-flash": "google/gemini-1.5-flash",
+    "Gemini.gemini-1.5-pro-001": "google/gemini-1.5-pro",
     "Gemini.gemini-1.5-pro-002": "google/gemini-1.5-pro",
 
+    // Additional mappings for models without provider prefix
+    "gemini-2.0-flash": "google/gemini-2.0-flash",
+    "gemini-1.5-flash-001": "google/gemini-1.5-flash",
+    "gemini-1.5-flash-002": "google/gemini-1.5-flash",
+    "gemini-1.5-flash": "google/gemini-1.5-flash",
+    "gemini-1.5-pro-001": "google/gemini-1.5-pro",
+    "gemini-1.5-pro-002": "google/gemini-1.5-pro",
+
     // Anthropic Claude models
-    "Anthropic.claude-3-7-sonnet-latest": "anthropic/claude-3-5-sonnet-latest",
+    "Anthropic.claude-3-5-sonnet-latest": "anthropic/claude-3-5-sonnet-latest",
+    "Anthropic.claude-3-7-sonnet-latest": "anthropic/claude-3.7-sonnet-latest",
     "Anthropic.claude-3-haiku-20240307": "anthropic/claude-3-haiku-20240307",
     "Anthropic.claude-3-opus-20240229": "anthropic/claude-3-opus-20240229",
     "Anthropic.claude-3-sonnet-20240229": "anthropic/claude-3-sonnet-20240229",
@@ -113,7 +125,7 @@ export function mapLDToVercelModel(ldModelName: string): string {
     "gemini-2-0-flash": "google/gemini-2.0-flash",
     "gemini-1-5-flash-002": "google/gemini-1.5-flash",
     "gemini-1-5-pro-002": "google/gemini-1.5-pro",
-    "claude-3-7-sonnet-latest": "anthropic/claude-3-5-sonnet-latest",
+    "claude-3-7-sonnet-latest": "anthropic/claude-3.7-sonnet-latest",
     "claude-3-haiku-20240307": "anthropic/claude-3-haiku-20240307",
     "claude-3-opus-20240229": "anthropic/claude-3-opus-20240229",
   };

@@ -10,11 +10,11 @@ Company: Acme Corp
 
 [00:00:08] John: Great! I'm reaching out because we help companies like Acme Corp improve their data infrastructure. I noticed you're currently using legacy systems. Would you be interested in learning how we've helped similar companies reduce costs by 40%?
 
-[00:00:20] Sarah: We've been thinking about upgrading, but we're not sure about the timeline or budget yet.
+[00:00:20] Sarah: We've been thinking about upgrading. Actually, we talked to your company six months ago and were quite interested then, but now we're not sure about the timeline or budget anymore. The economic climate has changed our priorities.
 
 [00:00:25] John: That's completely understandable. Many of our clients started in the same position. Would it make sense to schedule a quick 15-minute discovery call next week to explore if this might be a good fit?
 
-[00:00:35] Sarah: Sure, let's schedule something for Tuesday.
+[00:00:35] Sarah: I suppose we could, but honestly, I'm less optimistic than before. Tuesday would work, but keep it brief.
 
 [00:00:38] John: Perfect! I'll send you a calendar invite. Looking forward to speaking with you then.
 

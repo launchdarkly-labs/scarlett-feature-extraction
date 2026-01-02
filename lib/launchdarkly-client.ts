@@ -110,6 +110,29 @@ export async function extractJSONSchemaFromTools(
 
   console.log("Tools extracted:", tools ? `Found ${tools.length} tools` : "No tools");
 
+  // Log what LaunchDarkly actually returned
+  if (tools && tools.length > 0) {
+    const firstTool = tools[0];
+    console.log("First tool keys:", Object.keys(firstTool));
+    console.log("Has 'key' field?:", 'key' in firstTool);
+    console.log("Has 'parameters' field?:", 'parameters' in firstTool);
+    console.log("Has 'function' field?:", 'function' in firstTool);
+
+    // If it's just a reference, log that
+    if (firstTool.key && !firstTool.parameters && !firstTool.function) {
+      console.log("⚠️ LaunchDarkly returned tool REFERENCE, not full schema");
+      console.log("Tool reference:", firstTool);
+    } else if (firstTool.parameters) {
+      console.log("✅ LaunchDarkly returned FULL tool schema");
+      const props = Object.keys(firstTool.parameters.properties || {});
+      console.log(`Tool has ${props.length} properties`);
+      if (props.includes('sentiment_trajectory')) {
+        const desc = firstTool.parameters.properties.sentiment_trajectory.description;
+        console.log(`Sentiment description from LD SDK: "${desc.substring(0, 80)}..."`);
+      }
+    }
+  }
+
   if (!tools || tools.length === 0) {
     console.log("No tools found in config");
     return null;
@@ -131,36 +154,16 @@ export async function extractJSONSchemaFromTools(
       return tool.function.parameters;
     }
 
-    // Tool is a reference {key, version} - fetch the full tool from API
-    if (tool.key) {
-      console.log(`Fetching tool schema for: ${tool.key}`);
-      const apiKey = process.env.LD_API_KEY;
-      const projectKey = process.env.LD_PROJECT_KEY;
+    // Tool is a reference {key, version} - this shouldn't happen in production
+    // The SDK should return full schemas. If we get here, something is wrong
+    if (tool.key && !tool.parameters && !tool.function) {
+      console.error(`❌ ERROR: LaunchDarkly returned tool reference instead of full schema`);
+      console.error(`Tool reference:`, tool);
+      console.error(`This indicates a configuration issue. Tools should be fully embedded.`);
 
-      if (!apiKey || !projectKey) {
-        console.error("LD_API_KEY or LD_PROJECT_KEY not set - cannot fetch tool schema");
-        return null;
-      }
-
-      const response = await fetch(
-        `https://app.launchdarkly.com/api/v2/projects/${projectKey}/ai-tools/${tool.key}`,
-        {
-          headers: {
-            "Authorization": apiKey,
-            "LD-API-Version": "beta",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const toolData = await response.json();
-        console.log(`Tool ${tool.key} fetched, properties:`, Object.keys(toolData.schema?.properties || {}));
-        return toolData.schema;
-      } else {
-        console.error(`Failed to fetch tool ${tool.key}: ${response.statusText}`);
-        console.error(`Response status: ${response.status}`);
-        return null;
-      }
+      // In production, we should not fetch from API
+      // The bootstrap script should ensure everything is properly configured
+      return null;
     }
 
     return null;

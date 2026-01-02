@@ -414,6 +414,13 @@ Prioritize accuracy over speed.""",
 - Callback scheduling
 - Initial engagement signals
 
+For sentiment_trajectory, look for comparative language:
+- "more interested/less interested than before" → improving/declining
+- "we talked before and were interested then, but now..." → declining
+- "still interested" or "maintained interest" → stable
+- "less optimistic than before" → declining
+- "more excited now" → improving
+
 Be precise and evidence-based.""",
             "tools": ["extract_prospecting_features"],
             "modelConfigKey": "Gemini.gemini-1.5-flash-002"
@@ -426,6 +433,10 @@ Be precise and evidence-based.""",
 - Authority level identification
 - Need validation and pain points
 - Timeline for decision and implementation
+
+For sentiment_trajectory: Look for phrases comparing past and present sentiment.
+Examples: "still interested"→stable, "less sure now"→declining, "more convinced"→improving
+If no comparison exists, return "unknown".
 
 Focus on qualification signals.""",
             "tools": ["extract_discovery_features"],
@@ -440,6 +451,11 @@ Focus on qualification signals.""",
 - Technical fit and concerns
 - Competitive comparisons
 - Trial/POC requests
+
+For sentiment_trajectory: Check for language comparing sentiment over time:
+"consistently positive", "maintained our interest" → stable
+"growing more interested" → improving
+"having second thoughts" → declining
 
 Assess demo effectiveness.""",
             "tools": ["extract_demo_features"],
@@ -457,7 +473,7 @@ Assess demo effectiveness.""",
 
 Focus on deal closing signals.""",
             "tools": ["extract_proposal_features"],
-            "modelConfigKey": "Anthropic.claude-3-opus-20240229"
+            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
         },
         {
             "key": "variation-e",
