@@ -76,6 +76,10 @@ export default function Home() {
   const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null);
   const [showMetrics, setShowMetrics] = useState(false);
   const [extractionStats, setExtractionStats] = useState<ExtractionStats | null>(null);
+  const [trainingFile, setTrainingFile] = useState<File | null>(null);
+  const [useDemo, setUseDemo] = useState(false);
+  const [trainTestSplit, setTrainTestSplit] = useState(80);
+  const [minSamplesForTraining, setMinSamplesForTraining] = useState(100);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -271,13 +275,25 @@ export default function Home() {
   };
 
   const handleTrainModel = async () => {
+    if (!useDemo && !trainingFile) {
+      setError("Please select a CSV file or enable demo mode");
+      return;
+    }
+
     setTrainingModel(true);
     setError("");
     setModelMetrics(null);
 
     try {
       const formData = new FormData();
-      formData.append("useDemo", "true"); // Use demo data for now
+
+      if (useDemo) {
+        formData.append("useDemo", "true");
+      } else if (trainingFile) {
+        formData.append("csvFile", trainingFile);
+        formData.append("trainTestSplit", trainTestSplit.toString());
+        formData.append("minSamples", minSamplesForTraining.toString());
+      }
 
       const response = await fetch("/api/train-model", {
         method: "POST",
@@ -534,19 +550,111 @@ export default function Home() {
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              ML Model Demo
+              🤖 ML Model Training
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Train a two-stage deal prediction model - Summary
+              Train a two-stage deal prediction model on your extracted data
             </p>
           </div>
-          <button
-            onClick={handleTrainModel}
-            disabled={trainingModel}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg px-6 py-3 font-medium hover:from-purple-700 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-          >
-            {trainingModel ? "Training Model..." : "🤖 Train Model & View Metrics"}
-          </button>
+
+          <div className="space-y-4">
+            {/* Data Source Selection */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Data Source</h4>
+              <div className="space-y-3">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={useDemo}
+                    onChange={(e) => {
+                      setUseDemo(e.target.checked);
+                      if (e.target.checked) setTrainingFile(null);
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Use demo data (500 synthetic samples)</span>
+                </label>
+
+                {!useDemo && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select CSV file (from extracted results)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setTrainingFile(e.target.files[0]);
+                          setError("");
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-purple-50 file:text-purple-700
+                        hover:file:bg-purple-100"
+                    />
+                    {trainingFile && (
+                      <p className="mt-2 text-xs text-gray-600">
+                        Selected: {trainingFile.name}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Training Parameters */}
+            {!useDemo && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Training Parameters</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Train/Test Split: {trainTestSplit}%/{100-trainTestSplit}%
+                    </label>
+                    <input
+                      type="range"
+                      min="60"
+                      max="90"
+                      step="5"
+                      value={trainTestSplit}
+                      onChange={(e) => setTrainTestSplit(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Minimum samples required: {minSamplesForTraining}
+                    </label>
+                    <input
+                      type="range"
+                      min="50"
+                      max="500"
+                      step="50"
+                      value={minSamplesForTraining}
+                      onChange={(e) => setMinSamplesForTraining(Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Model won't train if dataset has fewer samples than this threshold
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleTrainModel}
+              disabled={trainingModel || (!useDemo && !trainingFile)}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg px-6 py-3 font-medium hover:from-purple-700 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+            >
+              {trainingModel ? "Training Model..." : "🚀 Train Model & View Metrics"}
+            </button>
+          </div>
         </div>
 
         {showMetrics && modelMetrics && (
@@ -610,7 +718,7 @@ export default function Home() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Predicted Total Value:</span>
-                  <span className="font-semibold text-green-700">${modelMetrics.business_metrics.total_predicted_value.toLocaleString()}</span>
+                  <span className="font-semibold text-green-700">${Math.round(modelMetrics.business_metrics.total_predicted_value).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Prediction Error:</span>
@@ -620,7 +728,7 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">MAE (Overall):</span>
-                  <span className="font-semibold">${modelMetrics.business_metrics.mae_overall.toLocaleString()}</span>
+                  <span className="font-semibold">${Math.round(modelMetrics.business_metrics.mae_overall).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -637,12 +745,12 @@ export default function Home() {
                         <div className="flex-1">
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-gray-600">{feat.feature.replace(/_/g, ' ')}</span>
-                            <span className="text-gray-500">{(feat.importance * 100).toFixed(1)}%</span>
+                            <span className="text-gray-500">{feat.importance.toFixed(1)}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-purple-600 h-2 rounded-full transition-all"
-                              style={{ width: `${feat.importance * 100}%` }}
+                              style={{ width: `${Math.min(feat.importance, 100)}%` }}
                             />
                           </div>
                         </div>
@@ -658,12 +766,12 @@ export default function Home() {
                         <div className="flex-1">
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-gray-600">{feat.feature.replace(/_/g, ' ')}</span>
-                            <span className="text-gray-500">{(feat.importance * 100).toFixed(1)}%</span>
+                            <span className="text-gray-500">{feat.importance.toFixed(1)}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-blue-600 h-2 rounded-full transition-all"
-                              style={{ width: `${feat.importance * 100}%` }}
+                              style={{ width: `${Math.min(feat.importance, 100)}%` }}
                             />
                           </div>
                         </div>
@@ -739,8 +847,8 @@ export default function Home() {
                       <tr key={pred.deal_num} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2">{pred.deal_num}</td>
                         <td className="py-2 px-2 text-right font-medium">{(pred.p_close * 100).toFixed(1)}%</td>
-                        <td className="py-2 px-2 text-right">${pred.value_if_closed.toLocaleString()}</td>
-                        <td className="py-2 px-2 text-right font-semibold text-purple-600">${pred.expected_value.toLocaleString()}</td>
+                        <td className="py-2 px-2 text-right">${Math.round(pred.value_if_closed).toLocaleString()}</td>
+                        <td className="py-2 px-2 text-right font-semibold text-purple-600">${Math.round(pred.expected_value).toLocaleString()}</td>
                         <td className="py-2 px-2 text-center">
                           {pred.actual_closed ? (
                             <span className="text-green-600 font-bold">✓</span>
@@ -767,7 +875,7 @@ export default function Home() {
 
         <div className="mt-8 pt-6 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
-            Powered by Vercel AI Gateway + LaunchDarkly AI Configs
+            Powered by LaunchDarkly AI Configs + Vercel AI Gateway
           </p>
         </div>
       </div>

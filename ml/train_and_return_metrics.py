@@ -22,37 +22,37 @@ def generate_synthetic_training_data(n_samples: int = 500, close_rate: float = 0
     """Generate synthetic sales deal data for demonstration."""
     np.random.seed(42)
 
+    # Generate features independently with realistic distributions
     data = pd.DataFrame({
         'transcript_id': [f'transcript_{i}' for i in range(n_samples)],
         'customer_company_name': [f'Company_{i%100}' for i in range(n_samples)],
 
-        # Sentiment features
-        'overall_sentiment_score': np.random.normal(0.3, 0.4, n_samples),
-        'product_sentiment': np.random.normal(0.4, 0.3, n_samples),
-        'pricing_sentiment': np.random.normal(0.1, 0.5, n_samples),
-        'competitors_sentiment': np.random.normal(-0.2, 0.3, n_samples),
+        # Sentiment features - realistic distributions
+        'overall_sentiment_score': np.random.normal(0.25, 0.35, n_samples),
+        'sentiment_about_product': np.random.normal(0.35, 0.35, n_samples),
+        'sentiment_about_pricing': np.random.normal(0.0, 0.45, n_samples),
+        'sentiment_about_competitors': np.random.normal(-0.1, 0.35, n_samples),
+        'sentiment_about_current_solution': np.random.normal(0.0, 0.4, n_samples),
+        'sentiment_about_market_conditions': np.random.normal(0.1, 0.3, n_samples),
 
-        # Sentiment trajectory (NEW)
-        'sentiment_trajectory': np.random.choice(['improving', 'stable', 'declining', 'unknown'], n_samples, p=[0.25, 0.45, 0.15, 0.15]),
+        # Engagement scores - beta distributions for realistic 0-1 scores
+        'customer_engagement_score': np.random.beta(3, 3, n_samples),  # Centered around 0.5
+        'urgency_score': np.random.beta(2.5, 4, n_samples),  # Skewed lower (most not urgent)
+        'budget_confidence_score': np.random.beta(3, 4, n_samples),  # Slightly below center
 
-        # Engagement scores
-        'customer_engagement_score': np.random.uniform(0, 1, n_samples),
-        'urgency_score': np.random.uniform(0, 1, n_samples),
-        'budget_confidence_score': np.random.uniform(0, 1, n_samples),
-
-        # Binary signals
-        'next_steps_defined': np.random.choice([0, 1], n_samples, p=[0.3, 0.7]),
-        'timeline_mentioned': np.random.choice([0, 1], n_samples, p=[0.4, 0.6]),
+        # Binary signals - realistic probabilities
+        'next_steps_defined': np.random.choice([0, 1], n_samples, p=[0.4, 0.6]),
+        'timeline_mentioned': np.random.choice([0, 1], n_samples, p=[0.45, 0.55]),
         'decision_maker_identified': np.random.choice([0, 1], n_samples, p=[0.5, 0.5]),
         'competitors_mentioned': np.random.choice([0, 1], n_samples, p=[0.6, 0.4]),
 
-        # Text statistics (NEW)
-        'transcript_word_count': np.random.lognormal(7.5, 0.5, n_samples).astype(int),  # ~1800 words avg
-        'customer_word_count': np.random.lognormal(6.8, 0.5, n_samples).astype(int),  # ~900 words avg
-        'customer_question_count': np.random.poisson(8, n_samples),  # ~8 questions avg
-        'technical_term_count': np.random.poisson(15, n_samples),  # ~15 technical terms
-        'pricing_mention_count': np.random.poisson(3, n_samples),  # ~3 pricing mentions
-        'competitor_mention_count': np.random.poisson(2, n_samples),  # ~2 competitor mentions
+        # Text statistics
+        'transcript_word_count': np.random.lognormal(7.5, 0.5, n_samples).astype(int),
+        'customer_word_count': np.random.lognormal(6.8, 0.5, n_samples).astype(int),
+        'customer_question_count': np.random.poisson(8, n_samples),
+        'technical_term_count': np.random.poisson(15, n_samples),
+        'pricing_mention_count': np.random.poisson(3, n_samples),
+        'competitor_mention_count': np.random.poisson(2, n_samples),
 
         # Categorical
         'call_category': np.random.choice(['prospecting', 'discovery', 'demo', 'proposal', 'technical', 'customer_success'], n_samples),
@@ -66,7 +66,8 @@ def generate_synthetic_training_data(n_samples: int = 500, close_rate: float = 0
     })
 
     # Clip sentiment scores
-    sentiment_cols = ['overall_sentiment_score', 'product_sentiment', 'pricing_sentiment', 'competitors_sentiment']
+    sentiment_cols = ['overall_sentiment_score', 'sentiment_about_product', 'sentiment_about_pricing',
+                      'sentiment_about_competitors', 'sentiment_about_current_solution', 'sentiment_about_market_conditions']
     for col in sentiment_cols:
         data[col] = data[col].clip(-1, 1)
 
@@ -78,27 +79,35 @@ def generate_synthetic_training_data(n_samples: int = 500, close_rate: float = 0
     data['pricing_mention_count'] = data['pricing_mention_count'].clip(0, 20)
     data['competitor_mention_count'] = data['competitor_mention_count'].clip(0, 10)
 
-    # Generate target
+    # Generate target with moderate correlation to features for realistic AUC ~75%
+    # Create a scoring function that uses key features with stronger weights
     close_score = (
-        0.3 * data['overall_sentiment_score'] +
-        0.2 * data['customer_engagement_score'] +
-        0.15 * data['urgency_score'] +
-        0.15 * data['budget_confidence_score'] +
-        0.1 * data['next_steps_defined'] +
-        0.05 * data['timeline_mentioned'] +
-        0.05 * data['decision_maker_identified'] +
-        np.random.normal(0, 0.2, n_samples)
+        0.4 * data['overall_sentiment_score'] +
+        0.35 * data['sentiment_about_product'] +
+        0.3 * data['customer_engagement_score'] +
+        0.3 * data['urgency_score'] +
+        0.25 * data['budget_confidence_score'] +
+        0.2 * data['next_steps_defined'] +
+        0.15 * data['timeline_mentioned'] +
+        0.1 * data['decision_maker_identified'] -
+        0.2 * data['sentiment_about_pricing'] +  # Negative pricing sentiment hurts
+        np.random.normal(0, 0.25, n_samples)  # Further reduced noise for ~75% AUC
     )
 
-    close_prob = 1 / (1 + np.exp(-close_score * 3 + np.log(1/close_rate - 1)))
-    data['deal_closed'] = (np.random.random(n_samples) < close_prob).astype(int)
+    # Convert to probability with logistic function
+    # Adjust the threshold to achieve roughly 15% close rate
+    close_prob = 1 / (1 + np.exp(-close_score * 2))
+
+    # Adjust threshold to get approximately 15% close rate
+    threshold = np.percentile(close_prob, 85)
+    data['deal_closed'] = (close_prob > threshold).astype(int)
 
     # Generate deal value
     value_multiplier = (
         1.0 +
-        0.3 * data['product_sentiment'].clip(0, 1) +
+        0.3 * data['sentiment_about_product'].clip(0, 1) +
         0.2 * data['customer_engagement_score'] -
-        0.15 * np.abs(data['pricing_sentiment'])
+        0.15 * np.abs(data['sentiment_about_pricing'])
     )
 
     data['deal_value'] = np.where(
@@ -112,23 +121,56 @@ def generate_synthetic_training_data(n_samples: int = 500, close_rate: float = 0
 
 def prepare_features(df: pd.DataFrame) -> tuple:
     """Prepare features and targets."""
-    feature_cols = [
-        # Sentiment features
-        'overall_sentiment_score', 'product_sentiment', 'pricing_sentiment', 'competitors_sentiment',
-        # Engagement scores
-        'customer_engagement_score', 'urgency_score', 'budget_confidence_score',
-        # Binary signals
-        'next_steps_defined', 'timeline_mentioned', 'decision_maker_identified', 'competitors_mentioned',
-        # Text statistics (NEW - high impact)
-        'transcript_word_count', 'customer_word_count', 'customer_question_count',
-        'technical_term_count', 'pricing_mention_count', 'competitor_mention_count',
-        # Categorical
-        'call_category', 'industry', 'customer_size', 'sentiment_trajectory',
-        # CRM features
-        'days_in_pipeline', 'touchpoint_count', 'estimated_deal_value'
-    ]
 
-    cat_features = ['call_category', 'industry', 'customer_size', 'sentiment_trajectory']
+    # Check if we have the exact extraction format columns
+    # and handle both formats for backward compatibility
+    sentiment_cols_extraction = ['sentiment_about_product', 'sentiment_about_pricing', 'sentiment_about_competitors']
+    sentiment_cols_ml = ['product_sentiment', 'pricing_sentiment', 'competitors_sentiment']
+
+    # Use extraction format if available, otherwise fall back to ML format
+    has_extraction_format = all(col in df.columns for col in sentiment_cols_extraction)
+
+    if has_extraction_format:
+        feature_cols = [
+            # Sentiment features - extraction format
+            'overall_sentiment_score', 'sentiment_about_product', 'sentiment_about_pricing',
+            'sentiment_about_competitors', 'sentiment_about_current_solution', 'sentiment_about_market_conditions',
+            # Engagement scores
+            'customer_engagement_score', 'urgency_score', 'budget_confidence_score',
+            # Binary signals
+            'next_steps_defined', 'timeline_mentioned', 'decision_maker_identified', 'competitors_mentioned',
+            # Text statistics
+            'transcript_word_count', 'customer_word_count', 'customer_question_count',
+            'technical_term_count', 'pricing_mention_count', 'competitor_mention_count',
+            # Categorical
+            'call_category', 'industry', 'customer_size',
+            # CRM features
+            'days_in_pipeline', 'touchpoint_count', 'estimated_deal_value'
+        ]
+    else:
+        # Fall back to old format for backward compatibility
+        feature_cols = [
+            # Sentiment features - ML format
+            'overall_sentiment_score', 'product_sentiment', 'pricing_sentiment', 'competitors_sentiment',
+            # Engagement scores
+            'customer_engagement_score', 'urgency_score', 'budget_confidence_score',
+            # Binary signals
+            'next_steps_defined', 'timeline_mentioned', 'decision_maker_identified', 'competitors_mentioned',
+            # Text statistics
+            'transcript_word_count', 'customer_word_count', 'customer_question_count',
+            'technical_term_count', 'pricing_mention_count', 'competitor_mention_count',
+            # Categorical
+            'call_category', 'industry', 'customer_size',
+            # CRM features
+            'days_in_pipeline', 'touchpoint_count', 'estimated_deal_value'
+        ]
+
+    # Add sentiment_trajectory if it exists (optional field)
+    if 'sentiment_trajectory' in df.columns:
+        feature_cols.append('sentiment_trajectory')
+        cat_features = ['call_category', 'industry', 'customer_size', 'sentiment_trajectory']
+    else:
+        cat_features = ['call_category', 'industry', 'customer_size']
 
     X = df[feature_cols].copy()
     y_close = df['deal_closed']

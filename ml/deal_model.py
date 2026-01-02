@@ -116,7 +116,6 @@ class TwoStageDealModel:
         self : TwoStageDealModel
         """
         # Stage 1: Train classifier on all data
-        print("Training Stage 1: Deal Close Classifier...")
         if eval_set:
             X_val, y_close_val, y_value_val = eval_set
             train_pool = Pool(X, y_close, cat_features=self.cat_features)
@@ -126,12 +125,9 @@ class TwoStageDealModel:
             self.classifier.fit(X, y_close, cat_features=self.cat_features)
 
         # Stage 2: Train regressor on closed deals only
-        print("Training Stage 2: Deal Value Regressor (closed deals only)...")
         converters_mask = y_close == 1
         X_closed = X[converters_mask]
         y_value_closed = y_value[converters_mask]
-
-        print(f"  Training on {len(X_closed)} closed deals out of {len(X)} total")
 
         if len(X_closed) < 10:
             raise ValueError(f"Not enough closed deals to train regressor (found {len(X_closed)}, need at least 10)")

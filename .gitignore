@@ -51,3 +51,6 @@ TUTORIAL.md
 
 # scripts folder (local testing scripts)
 scripts/
+
+# ML training artifacts
+catboost_info/
