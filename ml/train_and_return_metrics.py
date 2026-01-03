@@ -4,7 +4,6 @@ Train model and return metrics as JSON (for API consumption)
 
 Usage:
     python ml/train_and_return_metrics.py --csv extracted_features.csv
-    python ml/train_and_return_metrics.py --demo --samples 500
 """
 
 import argparse
@@ -16,107 +15,6 @@ from pathlib import Path
 from deal_model import TwoStageDealModel
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, precision_recall_curve
-
-
-def generate_synthetic_training_data(n_samples: int = 500, close_rate: float = 0.15) -> pd.DataFrame:
-    """Generate synthetic sales deal data for demonstration."""
-    np.random.seed(42)
-
-    # Generate features independently with realistic distributions
-    data = pd.DataFrame({
-        'transcript_id': [f'transcript_{i}' for i in range(n_samples)],
-        'customer_company_name': [f'Company_{i%100}' for i in range(n_samples)],
-
-        # Sentiment features - realistic distributions
-        'overall_sentiment_score': np.random.normal(0.25, 0.35, n_samples),
-        'sentiment_about_product': np.random.normal(0.35, 0.35, n_samples),
-        'sentiment_about_pricing': np.random.normal(0.0, 0.45, n_samples),
-        'sentiment_about_competitors': np.random.normal(-0.1, 0.35, n_samples),
-        'sentiment_about_current_solution': np.random.normal(0.0, 0.4, n_samples),
-        'sentiment_about_market_conditions': np.random.normal(0.1, 0.3, n_samples),
-
-        # Engagement scores - beta distributions for realistic 0-1 scores
-        'customer_engagement_score': np.random.beta(3, 3, n_samples),  # Centered around 0.5
-        'urgency_score': np.random.beta(2.5, 4, n_samples),  # Skewed lower (most not urgent)
-        'budget_confidence_score': np.random.beta(3, 4, n_samples),  # Slightly below center
-
-        # Binary signals - realistic probabilities
-        'next_steps_defined': np.random.choice([0, 1], n_samples, p=[0.4, 0.6]),
-        'timeline_mentioned': np.random.choice([0, 1], n_samples, p=[0.45, 0.55]),
-        'decision_maker_identified': np.random.choice([0, 1], n_samples, p=[0.5, 0.5]),
-        'competitors_mentioned': np.random.choice([0, 1], n_samples, p=[0.6, 0.4]),
-
-        # Text statistics
-        'transcript_word_count': np.random.lognormal(7.5, 0.5, n_samples).astype(int),
-        'customer_word_count': np.random.lognormal(6.8, 0.5, n_samples).astype(int),
-        'customer_question_count': np.random.poisson(8, n_samples),
-        'technical_term_count': np.random.poisson(15, n_samples),
-        'pricing_mention_count': np.random.poisson(3, n_samples),
-        'competitor_mention_count': np.random.poisson(2, n_samples),
-
-        # Categorical
-        'call_category': np.random.choice(['prospecting', 'discovery', 'demo', 'proposal', 'technical', 'customer_success'], n_samples),
-        'industry': np.random.choice(['Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing'], n_samples),
-        'customer_size': np.random.choice(['SMB', 'Mid-Market', 'Enterprise'], n_samples, p=[0.5, 0.3, 0.2]),
-
-        # CRM features
-        'days_in_pipeline': np.random.exponential(45, n_samples).astype(int),
-        'touchpoint_count': np.random.poisson(8, n_samples),
-        'estimated_deal_value': np.random.lognormal(11, 1.5, n_samples).astype(int),
-    })
-
-    # Clip sentiment scores
-    sentiment_cols = ['overall_sentiment_score', 'sentiment_about_product', 'sentiment_about_pricing',
-                      'sentiment_about_competitors', 'sentiment_about_current_solution', 'sentiment_about_market_conditions']
-    for col in sentiment_cols:
-        data[col] = data[col].clip(-1, 1)
-
-    # Ensure realistic ranges for text statistics
-    data['transcript_word_count'] = data['transcript_word_count'].clip(200, 10000)
-    data['customer_word_count'] = data['customer_word_count'].clip(50, 5000)
-    data['customer_question_count'] = data['customer_question_count'].clip(0, 50)
-    data['technical_term_count'] = data['technical_term_count'].clip(0, 100)
-    data['pricing_mention_count'] = data['pricing_mention_count'].clip(0, 20)
-    data['competitor_mention_count'] = data['competitor_mention_count'].clip(0, 10)
-
-    # Generate target with moderate correlation to features for realistic AUC ~75%
-    # Create a scoring function that uses key features with stronger weights
-    close_score = (
-        0.4 * data['overall_sentiment_score'] +
-        0.35 * data['sentiment_about_product'] +
-        0.3 * data['customer_engagement_score'] +
-        0.3 * data['urgency_score'] +
-        0.25 * data['budget_confidence_score'] +
-        0.2 * data['next_steps_defined'] +
-        0.15 * data['timeline_mentioned'] +
-        0.1 * data['decision_maker_identified'] -
-        0.2 * data['sentiment_about_pricing'] +  # Negative pricing sentiment hurts
-        np.random.normal(0, 0.25, n_samples)  # Further reduced noise for ~75% AUC
-    )
-
-    # Convert to probability with logistic function
-    # Adjust the threshold to achieve roughly 15% close rate
-    close_prob = 1 / (1 + np.exp(-close_score * 2))
-
-    # Adjust threshold to get approximately 15% close rate
-    threshold = np.percentile(close_prob, 85)
-    data['deal_closed'] = (close_prob > threshold).astype(int)
-
-    # Generate deal value
-    value_multiplier = (
-        1.0 +
-        0.3 * data['sentiment_about_product'].clip(0, 1) +
-        0.2 * data['customer_engagement_score'] -
-        0.15 * np.abs(data['sentiment_about_pricing'])
-    )
-
-    data['deal_value'] = np.where(
-        data['deal_closed'] == 1,
-        data['estimated_deal_value'] * value_multiplier * np.random.lognormal(0, 0.3, n_samples),
-        0
-    ).astype(int)
-
-    return data
 
 
 def prepare_features(df: pd.DataFrame) -> tuple:
@@ -278,17 +176,12 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv', type=str, help='Path to CSV with labeled data')
-    parser.add_argument('--demo', action='store_true', help='Use synthetic demo data')
-    parser.add_argument('--samples', type=int, default=500, help='Number of synthetic samples')
+    parser.add_argument('--csv', type=str, required=True, help='Path to CSV with labeled data')
 
     args = parser.parse_args()
 
     try:
-        if args.demo or not args.csv:
-            data = generate_synthetic_training_data(n_samples=args.samples)
-        else:
-            data = pd.read_csv(args.csv)
+        data = pd.read_csv(args.csv)
 
         result = train_and_get_metrics(data)
 

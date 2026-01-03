@@ -1,6 +1,6 @@
 # ML Pipeline: Two-Stage Deal Prediction Model
 
-Production-ready machine learning pipeline for predicting sales deal outcomes using features extracted from call transcripts.
+Machine learning pipeline for predicting sales deal outcomes using features extracted from call transcripts.
 
 ## Overview
 

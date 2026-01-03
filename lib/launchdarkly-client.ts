@@ -103,35 +103,8 @@ export async function extractJSONSchemaFromTools(
     return null;
   }
 
-  // Tools can be in two places:
-  // 1. aiConfig.tools (expected structure)
-  // 2. aiConfig.model.parameters.tools (actual LaunchDarkly structure)
-  const tools = (aiConfig as any).model?.parameters?.tools || aiConfig.tools;
-
-  console.log("Tools extracted:", tools ? `Found ${tools.length} tools` : "No tools");
-
-  // Log what LaunchDarkly actually returned
-  if (tools && tools.length > 0) {
-    const firstTool = tools[0];
-    console.log("First tool keys:", Object.keys(firstTool));
-    console.log("Has 'key' field?:", 'key' in firstTool);
-    console.log("Has 'parameters' field?:", 'parameters' in firstTool);
-    console.log("Has 'function' field?:", 'function' in firstTool);
-
-    // If it's just a reference, log that
-    if (firstTool.key && !firstTool.parameters && !firstTool.function) {
-      console.log("⚠️ LaunchDarkly returned tool REFERENCE, not full schema");
-      console.log("Tool reference:", firstTool);
-    } else if (firstTool.parameters) {
-      console.log("✅ LaunchDarkly returned FULL tool schema");
-      const props = Object.keys(firstTool.parameters.properties || {});
-      console.log(`Tool has ${props.length} properties`);
-      if (props.includes('sentiment_trajectory')) {
-        const desc = firstTool.parameters.properties.sentiment_trajectory.description;
-        console.log(`Sentiment description from LD SDK: "${desc.substring(0, 80)}..."`);
-      }
-    }
-  }
+  // LaunchDarkly returns tools in model.parameters.tools
+  const tools = (aiConfig as any).model?.parameters?.tools;
 
   if (!tools || tools.length === 0) {
     console.log("No tools found in config");
@@ -140,29 +113,17 @@ export async function extractJSONSchemaFromTools(
 
   try {
     const tool = tools[0];
-    console.log("Tool structure:", JSON.stringify(tool, null, 2));
 
-    // Check if tool has the schema directly (LaunchDarkly structure)
+    // LaunchDarkly returns the schema directly in tool.parameters
     if (tool.parameters) {
-      console.log("Returning schema from tool.parameters");
-      console.log("Schema properties:", Object.keys(tool.parameters.properties || {}));
       return tool.parameters;
     }
 
-    // Check if tool has the schema in function (expected structure)
-    if (tool.function?.parameters) {
-      return tool.function.parameters;
-    }
-
-    // Tool is a reference {key, version} - this shouldn't happen in production
-    // The SDK should return full schemas. If we get here, something is wrong
-    if (tool.key && !tool.parameters && !tool.function) {
+    // Tool is a reference {key, version} - this shouldn't happen
+    if (tool.key && !tool.parameters) {
       console.error(`❌ ERROR: LaunchDarkly returned tool reference instead of full schema`);
       console.error(`Tool reference:`, tool);
       console.error(`This indicates a configuration issue. Tools should be fully embedded.`);
-
-      // In production, we should not fetch from API
-      // The bootstrap script should ensure everything is properly configured
       return null;
     }
 
