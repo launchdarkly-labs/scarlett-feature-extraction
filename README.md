@@ -2,7 +2,7 @@
 
 **Transform sales call transcripts into actionable CSV data with AI-powered sentiment analysis, business insights, and deal prediction.**
 
-Built with **Vercel AI Gateway** and **LaunchDarkly AI Configs** for dynamic schema management and A/B testing. Includes ML model training for deal prediction using CatBoost.
+Built with **LaunchDarkly AI Configs** and **Vercel AI Gateway** for dynamic schema management and A/B testing. Uses the official `@launchdarkly/server-sdk-ai-vercel` SDK with Next.js-specific optimizations for compatibility across all deployment environments. Includes ML model training for deal prediction using CatBoost.
 
 ## What You Get
 
@@ -50,6 +50,17 @@ python bootstrap/create_configs.py
 
 # 5. Run
 npm run dev
+# → http://localhost:3000
+```
+
+### Option 3: Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
 # → http://localhost:3000
 ```
 
@@ -187,12 +198,16 @@ npm run dev
 ### Deploy to Vercel
 
 ```bash
-vercel deploy
+# Deploy to preview environment
+vercel
+
+# Deploy to production
+vercel --prod
 ```
 
-Add environment variables in Vercel dashboard:
-- `LAUNCHDARKLY_SDK_KEY`
-- `AI_GATEWAY_API_KEY`
+**Required environment variables in Vercel dashboard:**
+- `LAUNCHDARKLY_SDK_KEY` - Your LaunchDarkly SDK key
+- `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` - Vercel AI Gateway authentication
 
 ### Docker Development
 
@@ -280,6 +295,56 @@ Total: ~$15/1,000 calls ($0.015/call avg)
 
 ---
 
+## Deployment Options
+
+### 1. Local Development
+```bash
+npm run dev
+# → http://localhost:3000
+```
+✅ Hot reloading
+✅ Debug mode
+✅ Instant changes
+
+### 2. Production Build (Local)
+```bash
+npm run build
+npm start
+# → http://localhost:3000
+```
+✅ Optimized build
+✅ Test production locally
+✅ Performance testing
+
+### 3. Docker Compose
+```bash
+docker-compose up
+# → http://localhost:3000
+```
+✅ Consistent environment
+✅ All services included
+✅ No dependency issues
+
+### 4. Vercel Platform
+```bash
+vercel          # Preview deployment
+vercel --prod   # Production deployment
+```
+✅ Auto-scaling
+✅ Edge functions
+✅ Built-in monitoring
+
+### 5. Docker (Standalone)
+```bash
+docker build -t transcript-extractor .
+docker run -p 3000:3000 --env-file .env transcript-extractor
+```
+✅ Container isolation
+✅ K8s ready
+✅ CI/CD compatible
+
+---
+
 ## Project Structure
 
 ```
@@ -293,13 +358,17 @@ vercel/
 │       └── extract-stream/route.ts   # Main endpoint with SSE progress
 ├── lib/
 │   ├── pipeline.ts                   # Two-stage orchestration + progress tracking
-│   ├── launchdarkly-client.ts        # LD integration (singleton)
-│   ├── vercel-client.ts              # Vercel AI Gateway client
+│   ├── launchdarkly-client.ts        # Official SDK integration with Next.js workarounds
 │   └── variation-mapping.ts          # Category → Variation routing
 ├── bootstrap/
 │   └── create_configs.py             # Auto-create LD configs
+├── ml/
+│   └── train_and_return_metrics.py   # CatBoost model training
 ├── data/
 │   └── test-transcripts/             # Edge case test files
+├── next.config.js                    # Next.js config with SDK bundling workarounds
+├── docker-compose.yml                 # Multi-service development environment
+├── Dockerfile                         # Production container build
 ├── LAUNCHDARKLY_TOOLS.json           # Tool schemas (copy to LD)
 ├── TUTORIAL.md                       # Long-form guide
 ├── package.json
@@ -335,6 +404,11 @@ vercel/
 → Refresh it by running: `npx vercel env pull`
 → This updates `.env.local` with a fresh token
 → Restart the dev server after refreshing
+
+**Module not found errors (Next.js bundling)**
+→ The LaunchDarkly SDK uses dynamic imports that Next.js can't bundle
+→ This is handled by webpack config in `next.config.js`
+→ If you see errors about missing @launchdarkly packages, ensure `next.config.js` includes the webpack aliases
 
 ---
 
