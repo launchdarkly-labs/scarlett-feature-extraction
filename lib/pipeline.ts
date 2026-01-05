@@ -1,18 +1,27 @@
 /**
- * Two-Stage Transcript Extraction Pipeline
+ * Two-Stage Transcript Extraction Pipeline using LaunchDarkly AI Configs
  *
- * Stage 1: Classification - Determines call type and routes to appropriate variation (A-F)
- * Stage 2: Feature Extraction - Extracts structured data based on call type
+ * This pipeline processes sales transcripts through two AI stages:
  *
- * Supports optional progress callbacks for real-time status updates via SSE.
+ * Stage 1: Classification
+ * - Uses the "transcript-classification" AI Config from LaunchDarkly
+ * - Determines the call type (discovery, demo, negotiation, etc.)
+ * - Routes to the appropriate extraction variation (A-F)
+ *
+ * Stage 2: Feature Extraction
+ * - Uses the "sales-transcript-extraction" AI Config from LaunchDarkly
+ * - Extracts structured data based on the call type
+ * - Returns 60+ fields of structured information
+ *
+ * The implementation uses the official @launchdarkly/server-sdk-ai-vercel pattern
+ * with Next.js-specific workarounds for bundling issues (see launchdarkly-client.ts)
  */
 
 import {
-  LaunchDarklyAIConfigClient,
+  LaunchDarklyAIClient,
   createContext,
   extractJSONSchemaFromTools,
 } from "./launchdarkly-client";
-import { VercelAIClient, mapLDToVercelModel } from "./vercel-client";
 import { getVariationForCategory } from "./variation-mapping";
 
 export interface TranscriptFile {
@@ -43,16 +52,14 @@ export interface ProgressUpdate {
 export type ProgressCallback = (update: ProgressUpdate) => void;
 
 export class TranscriptPipeline {
-  private ldClient: LaunchDarklyAIConfigClient;
-  private vercelClient: VercelAIClient;
+  private ldAIClient: LaunchDarklyAIClient;
 
   constructor() {
-    this.ldClient = new LaunchDarklyAIConfigClient();
-    this.vercelClient = new VercelAIClient();
+    this.ldAIClient = new LaunchDarklyAIClient();
   }
 
   async initialize(): Promise<void> {
-    await this.ldClient.waitForInitialization();
+    await this.ldAIClient.initialize();
   }
 
   async processTranscript(
@@ -82,8 +89,11 @@ export class TranscriptPipeline {
           percentage: Math.round(((current - 1) / total) * 100)
         });
       }
+
       const classificationContext = createContext(transcriptId, "transcript");
-      const classificationConfig = await this.ldClient.getAIConfig(
+
+      // Get classification config
+      const classificationConfig = await this.ldAIClient.getAIConfig(
         "transcript-classification",
         classificationContext
       );
@@ -92,29 +102,24 @@ export class TranscriptPipeline {
         throw new Error("Classification config not found");
       }
 
+      // Extract schema for classification
       const classificationSchema = await extractJSONSchemaFromTools(
         classificationConfig
       );
+
       if (!classificationSchema) {
         throw new Error("Classification schema not found in tools");
       }
 
-      if (!classificationConfig.model || !classificationConfig.model.name) {
-        throw new Error(`Classification config missing model information. Config: ${JSON.stringify(classificationConfig)}`);
-      }
+      // TEST: Log which prompt source is being used
+      console.log("📝 Classification prompt source:",
+        classificationConfig.messages?.[0]?.content ? "LaunchDarkly" : "DEFAULT (ERROR!)");
 
-      const classificationModel = mapLDToVercelModel(
-        classificationConfig.model.name
-      );
-      const classificationPrompt =
-        classificationConfig.messages?.[0]?.content ||
-        this.vercelClient.getDefaultExtractionPrompt();
-
-      const classification = await this.vercelClient.extractFeatures({
+      // Extract classification features
+      const classification = await this.ldAIClient.extractStructuredFeatures({
+        configKey: "transcript-classification",
+        context: classificationContext,
         transcript: transcriptFile.content,
-        model: classificationModel,
-        systemPrompt: classificationPrompt,
-        temperature: classificationConfig.model.parameters?.temperature || 0,
         jsonSchema: classificationSchema,
       });
 
@@ -148,6 +153,7 @@ export class TranscriptPipeline {
           percentage: Math.round(((current - 0.5) / total) * 100)
         });
       }
+
       const extractionContext = createContext(transcriptId, "transcript", {
         variation_hint: finalVariation,
         call_category: classification.call_category,
@@ -156,7 +162,8 @@ export class TranscriptPipeline {
 
       console.log("Extraction context:", JSON.stringify(extractionContext, null, 2));
 
-      const extractionConfig = await this.ldClient.getAIConfig(
+      // Get extraction config
+      const extractionConfig = await this.ldAIClient.getAIConfig(
         "sales-transcript-extraction",
         extractionContext
       );
@@ -167,27 +174,27 @@ export class TranscriptPipeline {
 
       console.log("Extraction config received:", JSON.stringify(extractionConfig, null, 2));
 
+      // Extract schema for extraction
       const extractionSchema = await extractJSONSchemaFromTools(extractionConfig);
       if (!extractionSchema) {
         throw new Error("Extraction schema not found in tools");
       }
 
-      if (!extractionConfig.model || !extractionConfig.model.name) {
-        throw new Error(`Extraction config missing model information. Config: ${JSON.stringify(extractionConfig)}`);
-      }
+      // TEST: Log which prompt source is being used
+      console.log("📝 Extraction prompt source:",
+        extractionConfig.messages?.[0]?.content ? "LaunchDarkly" : "DEFAULT (ERROR!)");
 
-      const extractionModel = mapLDToVercelModel(extractionConfig.model.name);
-      const extractionPrompt =
-        extractionConfig.messages?.[0]?.content ||
-        this.vercelClient.getDefaultExtractionPrompt();
-
-      const features = await this.vercelClient.extractFeatures({
+      // Extract features
+      const features = await this.ldAIClient.extractStructuredFeatures({
+        configKey: "sales-transcript-extraction",
+        context: extractionContext,
         transcript: transcriptFile.content,
-        model: extractionModel,
-        systemPrompt: extractionPrompt,
-        temperature: extractionConfig.model.parameters?.temperature || 0,
         jsonSchema: extractionSchema,
       });
+
+      // Get model names from configs
+      const classificationModel = classificationConfig.model?.name || "unknown";
+      const extractionModel = extractionConfig.model?.name || "unknown";
 
       // Combine extracted features with metadata
       const result = {
@@ -292,6 +299,6 @@ export class TranscriptPipeline {
   }
 
   async close(): Promise<void> {
-    await this.ldClient.close();
+    await this.ldAIClient.close();
   }
 }
