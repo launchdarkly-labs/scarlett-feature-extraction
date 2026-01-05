@@ -1,0 +1,93 @@
+Sales Call Transcript - Quarterly Business Review (Customer Success)
+
+Date: December 22, 2025
+Customer Success Manager: Jennifer Martinez
+Company: DataFlow Analytics (Existing Customer - 18 months)
+Contract Value: $120,000/year (Renewal due in 90 days)
+
+[00:00:01] Jennifer: Hi everyone, thanks for joining our Q4 business review. I wanted to review your usage, ROI, and discuss plans for next year.
+
+[00:00:10] Customer: Thanks Jennifer. We've been happy with the platform overall. Our team has fully adopted it.
+
+[00:00:18] Jennifer: That's great to hear. Let me share my screen with the usage dashboard. I can see you're currently at 87% user adoption across all departments, which is excellent. You started at 45% in Q1, so that's tremendous growth.
+
+[00:00:35] Customer: Yes, the analytics team really championed the rollout. We're seeing real value in the automated reporting features.
+
+[00:00:45] Jennifer: Speaking of value, let's review the ROI. Based on your initial goals, you wanted to reduce manual reporting time by 50%. Our data shows you've actually achieved a 67% reduction - your team is saving approximately 120 hours per week.
+
+[00:01:05] Customer: That's even better than we projected. The finance team is very pleased with that metric.
+
+[00:01:15] Jennifer: Excellent. I also noticed you're approaching your data storage limit - you're at 85% of your current tier. Have you noticed any slowdowns or limitations?
+
+[00:01:28] Customer: Not yet, but we are planning to onboard two more departments in Q1, which will definitely push us over the limit.
+
+[00:01:40] Jennifer: Perfect timing to discuss that. We have a few options. You could upgrade to the next tier which gives you 3x the storage, or we have a new add-on that just launched which gives you flexible storage at a lower cost than upgrading the full tier.
+
+[00:02:00] Customer: What's the pricing difference between those options?
+
+[00:02:05] Jennifer: Your current annual contract is $120,000. Upgrading to the next tier would be $180,000 annually. The flexible storage add-on would be about $145,000 total - so $25,000 additional. That gives you the storage you need without paying for features you might not use yet.
+
+[00:02:30] Customer: The flexible storage sounds like a better fit for now. What else is included in the higher tier that we're not getting?
+
+[00:02:40] Jennifer: The higher tier includes advanced predictive analytics, white-label reporting, and API access for custom integrations. Based on your current usage, I don't see you using those features heavily yet, so the storage add-on is probably the more cost-effective option.
+
+[00:03:00] Customer: That makes sense. We'll probably need the API access next year when we start our customer portal project, but not urgent right now.
+
+[00:03:15] Jennifer: Good to know. Let's plan for that. Your renewal is coming up in 90 days. What if we renew with the storage add-on now at $145,000, and then in 6 months we can re-evaluate if you need the full enterprise tier when you start the portal project?
+
+[00:03:35] Customer: That sounds reasonable. Can we also add another training session for the two new departments we're onboarding?
+
+[00:03:45] Jennifer: Absolutely. Your current plan includes two training sessions per year, and you've used one. I can schedule the second session for Q1 when you're ready. I can also set up office hours where my team is available for 2 hours per week to answer questions during the onboarding period.
+
+[00:04:05] Customer: That would be really helpful. The last onboarding went smoothly, but having that ongoing support would make it even better.
+
+[00:04:15] Jennifer: Perfect. Let's talk about any challenges or feature requests you have. Is there anything you wish the platform could do that it doesn't currently?
+
+[00:04:28] Customer: The mobile app is a bit clunky. Our field team has been asking for better mobile access to the dashboards.
+
+[00:04:40] Jennifer: Great feedback. We actually just released a beta of our redesigned mobile app with improved dashboard viewing. Would your field team be interested in joining the beta program? You'd get early access and direct line to our product team for feedback.
+
+[00:04:58] Customer: They would love that. How do we get them access?
+
+[00:05:05] Jennifer: I'll send you the beta signup link right after this call. The product team will reach out directly to schedule a walkthrough and gather their feedback.
+
+[00:05:20] Customer: Excellent. One more thing - we had a few outages in October that impacted our end-of-month reporting. What happened there?
+
+[00:05:32] Jennifer: Yes, I wanted to address that. We had two incidents in October - one was a 45-minute outage due to a database migration issue, and another was a 20-minute degradation during a traffic spike. Both were outside our SLA, and we've already credited your account for those incidents per our SLA terms.
+
+[00:05:55] Customer: I saw the credits, thank you. What have you done to prevent this in the future?
+
+[00:06:05] Jennifer: We've implemented several changes: upgraded our database infrastructure to handle 3x the load, improved our automated scaling, and added additional monitoring to catch issues earlier. We've also added a status page so you get proactive notifications during any incidents.
+
+[00:06:30] Customer: Good to hear. Our CFO was concerned about reliability for critical reporting.
+
+[00:06:40] Jennifer: Completely understandable. I'd be happy to schedule a quick call with our VP of Engineering and your CFO to walk through the infrastructure improvements and our reliability roadmap if that would be helpful.
+
+[00:06:55] Customer: That would be great. Let's do that before we finalize the renewal.
+
+[00:07:05] Jennifer: Perfect. I'll set that up for next week. Let me summarize our action items: storage add-on at $145,000 for renewal, training session in Q1, office hours during onboarding, mobile beta access, and engineering call with your CFO. Does that cover everything?
+
+[00:07:30] Customer: Yes, that's comprehensive. Let's plan to finalize the renewal paperwork after the engineering call.
+
+[00:07:40] Jennifer: Sounds great. I'll send over the renewal proposal with the updated terms this week. Really appreciate the partnership, and I'm excited to support your expansion into the new departments.
+
+Call Type: Customer Success/QBR
+Deal Stage: Renewal/Expansion
+Current Contract Value: $120,000/year
+Proposed Contract Value: $145,000/year
+Expansion Revenue: $25,000 (20.8% expansion)
+Customer Tenure: 18 months
+User Adoption Rate: 87%
+ROI Achievement: 67% time savings (exceeded 50% goal)
+Customer Satisfaction: High
+Usage Metrics: 85% of storage capacity
+Expansion Opportunity: Storage add-on now, potential full enterprise tier upgrade in 6 months
+Churn Risk: Low
+Issues Raised: Mobile app UX, October outages
+Issues Resolved: Yes (credits issued, beta program access, engineering call scheduled)
+Feature Requests: Better mobile experience
+Upcoming Projects: Customer portal (requires API access in 6 months)
+Renewal Timeline: 90 days
+Next Steps: Storage add-on renewal at $145,000, Q1 training session, mobile beta access, engineering call with CFO, renewal paperwork after engineering call
+Cross-sell Opportunities: Enterprise tier upgrade in 6 months for API access and advanced analytics
+Customer Health Score: Healthy/Green

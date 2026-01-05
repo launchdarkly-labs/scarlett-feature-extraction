@@ -423,7 +423,7 @@ For sentiment_trajectory, look for comparative language:
 
 Be precise and evidence-based.""",
             "tools": ["extract_prospecting_features"],
-            "modelConfigKey": "Gemini.gemini-1.5-flash-002"
+            "modelConfigKey": "Gemini.gemini-2.0-flash"
         },
         {
             "key": "variation-b",
@@ -459,7 +459,7 @@ For sentiment_trajectory: Check for language comparing sentiment over time:
 
 Assess demo effectiveness.""",
             "tools": ["extract_demo_features"],
-            "modelConfigKey": "Gemini.gemini-2.0-flash"
+            "modelConfigKey": "OpenAI.gpt-4o-mini"
         },
         {
             "key": "variation-d",
@@ -473,7 +473,7 @@ Assess demo effectiveness.""",
 
 Focus on deal closing signals.""",
             "tools": ["extract_proposal_features"],
-            "modelConfigKey": "Gemini.gemini-1.5-pro-002"
+            "modelConfigKey": "Anthropic.claude-3-opus-20240229"
         },
         {
             "key": "variation-e",

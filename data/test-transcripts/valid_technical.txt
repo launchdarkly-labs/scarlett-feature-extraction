@@ -1,0 +1,78 @@
+Sales Call Transcript - Technical Deep Dive & Solutions Engineering
+
+Date: December 22, 2025
+Solutions Engineer: David Kim
+Company: CloudScale Technologies
+Attendees: Customer CTO, VP Engineering, Lead Architect, Security Engineer
+
+[00:00:01] David: Thanks everyone for joining this technical architecture review. I have our solutions architect Sarah joining as well to dive deep into your infrastructure requirements.
+
+[00:00:08] CTO: Thanks David. We're evaluating your platform for our microservices migration. Our main concerns are around scalability, security, and integration with our existing Kubernetes infrastructure.
+
+[00:00:25] David: Perfect. Let me share our architecture diagram. As you can see, our platform is built on a cloud-native foundation that supports both AWS and GCP. Sarah, can you walk through the integration points?
+
+[00:00:40] Sarah (SE): Absolutely. For Kubernetes integration, we support both EKS and GKE natively. Our agent runs as a sidecar container and handles service mesh integration, observability, and policy enforcement. What service mesh are you currently using?
+
+[00:01:00] Lead Architect: We're using Istio 1.16. How does your solution integrate with our existing service mesh?
+
+[00:01:10] Sarah: We have native Istio integration. Our sidecar can plug directly into your Istio control plane without requiring a rip-and-replace. We support mutual TLS, traffic management, and distributed tracing out of the box.
+
+[00:01:30] Security Engineer: What about security and compliance? We're SOC 2 Type II certified and need to maintain compliance. How do you handle data encryption, both at rest and in transit?
+
+[00:01:45] David: Great question. We're also SOC 2 Type II certified, as well as ISO 27001 and HIPAA compliant. All data is encrypted using AES-256 at rest and TLS 1.3 in transit. We also support customer-managed encryption keys through AWS KMS or Google Cloud KMS.
+
+[00:02:05] Security Engineer: Do you support our existing SSO with Okta? And what about role-based access control?
+
+[00:02:15] David: Yes, we have full SAML 2.0 and OIDC support for SSO. We integrate with Okta, Azure AD, and other identity providers. For RBAC, we support fine-grained permissions at the namespace, cluster, and resource level. You can map your existing Okta groups directly to our roles.
+
+[00:02:40] VP Engineering: What about observability and monitoring? We use Datadog and want to maintain our existing dashboards.
+
+[00:02:50] Sarah: We have native integrations with Datadog, New Relic, and Prometheus. Our platform exports metrics in OpenTelemetry format, so you can continue using your existing monitoring stack. We also provide pre-built Datadog dashboards that you can customize.
+
+[00:03:15] Lead Architect: How does failover and disaster recovery work? We need multi-region active-active deployment.
+
+[00:03:25] Sarah: We support active-active multi-region deployments with automatic failover. Our control plane uses a distributed consensus algorithm similar to Raft, with data replicated across regions. RPO is near-zero and RTO is typically under 60 seconds. We can also integrate with your existing DR processes.
+
+[00:03:55] CTO: What about migration? We have about 300 microservices currently running. What's the migration path?
+
+[00:04:05] David: We recommend a phased migration approach. We typically start with 5-10 non-critical services as a pilot, validate the integration, then roll out in waves. Our professional services team will work with your engineers on the migration playbook. Average time for your scale is 8-12 weeks for full migration.
+
+[00:04:30] VP Engineering: What level of support do you provide during and after migration?
+
+[00:04:40] David: For enterprise customers, we provide a dedicated customer success engineer during migration, plus 24/7 premium support with 15-minute response time for P1 issues. After go-live, you'll have quarterly business reviews and ongoing architecture guidance.
+
+[00:05:00] Lead Architect: Can we test this in our staging environment first? What's the process?
+
+[00:05:10] Sarah: Absolutely. We can provision a proof-of-concept environment within 48 hours. You'll get full access to our platform for 30 days, and I'll work directly with your team on the technical implementation. No commitment required for the POC.
+
+[00:05:30] CTO: That sounds good. What are the technical prerequisites for the POC?
+
+[00:05:40] Sarah: You'll need a Kubernetes cluster (EKS or GKE), namespace access for our agent, and network connectivity to our control plane endpoints. I'll send you a technical requirements doc with all the details including IP ranges, ports, and permissions needed.
+
+[00:06:00] Security Engineer: One more question - how do you handle API rate limiting and DDoS protection?
+
+[00:06:10] David: We have built-in rate limiting at the API gateway level, configurable per endpoint or per client. For DDoS protection, we use Cloudflare Enterprise in front of our API endpoints, with automatic scaling and traffic filtering. We can also integrate with your existing WAF policies.
+
+[00:06:35] CTO: This looks very comprehensive. Let's move forward with the POC. What are the next steps?
+
+[00:06:45] David: Perfect. Sarah will send over the technical requirements document today. Once we have your staging cluster details, we'll provision the POC environment. I'll also schedule weekly check-ins during the POC to ensure everything is running smoothly and address any questions.
+
+[00:07:00] VP Engineering: Sounds great. We're targeting production deployment by Q2, so this timeline works well for us.
+
+[00:07:10] David: Excellent. That aligns perfectly with our implementation timeline. I'll also connect you with one of our reference customers who did a similar migration - they're happy to share their experience.
+
+Call Type: Technical/Solutions Engineering
+Deal Stage: Technical Evaluation
+Company Size: Enterprise (300 microservices)
+Industry: Technology/Cloud Infrastructure
+Technical Requirements Discussed: Kubernetes integration, Service mesh (Istio), Multi-region active-active, Disaster recovery, Security/Compliance, SSO integration, Observability
+Integration Points: Kubernetes (EKS/GKE), Istio, Datadog, Okta SSO, AWS KMS, Google Cloud KMS
+Security Requirements: SOC 2 Type II, ISO 27001, HIPAA, AES-256 encryption, TLS 1.3, RBAC
+Architecture Complexity: High
+Migration Scope: 300 microservices, 8-12 weeks
+POC Requested: Yes
+POC Timeline: 30 days
+Technical Stakeholders: CTO, VP Engineering, Lead Architect, Security Engineer
+Customer Engagement: Very Positive
+Next Steps: POC provisioning within 48 hours, technical requirements doc, weekly check-ins, customer reference connection
+Production Timeline: Q2 target

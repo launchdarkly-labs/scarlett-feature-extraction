@@ -172,8 +172,6 @@ export class TranscriptPipeline {
         throw new Error("Extraction config not found");
       }
 
-      console.log("Extraction config received:", JSON.stringify(extractionConfig, null, 2));
-
       // Extract schema for extraction
       const extractionSchema = await extractJSONSchemaFromTools(extractionConfig);
       if (!extractionSchema) {
@@ -193,6 +191,7 @@ export class TranscriptPipeline {
       });
 
       // Get model names from configs
+      // With completionConfig(), the model is at the top level
       const classificationModel = classificationConfig.model?.name || "unknown";
       const extractionModel = extractionConfig.model?.name || "unknown";
 

@@ -1,0 +1,53 @@
+Sales Call Transcript - Proposal & Negotiation Call
+
+Date: December 22, 2025
+Salesperson: Michael Rodriguez
+Company: Enterprise Solutions Ltd
+Deal Value: $250,000
+
+[00:00:01] Michael: Thanks for joining today's call. I wanted to walk through our proposal based on your requirements from last week.
+
+[00:00:08] Customer: Yes, we've reviewed the initial proposal. The pricing is a bit higher than we anticipated for our budget cycle.
+
+[00:00:15] Michael: I understand. Let me break down the pricing structure. The $250,000 includes enterprise licensing for 500 users, premium support, and implementation services. Which component is your primary concern?
+
+[00:00:30] Customer: We're comfortable with the licensing costs, but the implementation fee seems steep. Can we reduce that if we handle some of the setup internally?
+
+[00:00:42] Michael: Absolutely. If your IT team can handle user provisioning and basic configuration, we can reduce the implementation fee by 30%, bringing it down to around $175,000 total.
+
+[00:00:55] Customer: That's more aligned with our budget. What about payment terms? Can we do quarterly instead of annual upfront?
+
+[00:01:05] Michael: For a deal of this size, we can definitely structure quarterly payments. I'll need to confirm the exact terms with finance, but typically we can do 40% upfront and the remainder in three quarterly installments.
+
+[00:01:20] Customer: That works for us. We'd also need a 30-day out clause in the first quarter in case the executive team changes direction.
+
+[00:01:30] Michael: I understand the need for flexibility. Let me propose this: instead of a full out clause, we can include a satisfaction guarantee where if you're not seeing value after 60 days, we'll work together on either adjusting the scope or providing partial credits toward other services.
+
+[00:01:50] Customer: That's reasonable. When can we see the revised proposal with these terms?
+
+[00:02:00] Michael: I'll have the updated proposal with the adjusted pricing, payment terms, and satisfaction guarantee to you by end of day tomorrow. Should I include the technical specifications we discussed last week?
+
+[00:02:15] Customer: Yes, please include those. We need to present this to the CFO and CTO next Monday.
+
+[00:02:25] Michael: Perfect. I'll make sure everything is ready for your executive review. Do you need any additional materials like ROI calculations or customer references?
+
+[00:02:35] Customer: ROI calculations would be very helpful, especially around the efficiency gains you mentioned.
+
+[00:02:42] Michael: Absolutely. I'll include a detailed ROI model showing the 6-month payback period based on your team size. Anything else you need for the executive meeting?
+
+[00:02:55] Customer: I think that covers it. We're excited to move forward with this.
+
+[00:03:00] Michael: Excellent. I'll send everything over tomorrow, and let's schedule a quick check-in call for Friday to address any questions before your Monday presentation.
+
+Call Type: Proposal/Negotiation
+Deal Stage: Negotiation
+Original Deal Value: $250,000
+Negotiated Deal Value: $175,000
+Discount Percentage: 30%
+Customer Engagement: Very Positive
+Payment Terms: Quarterly (40% upfront)
+Objections Raised: Pricing, Payment Terms, Risk Mitigation
+Objections Resolved: Yes
+Decision Makers: CFO, CTO
+Next Steps: Revised proposal by end of day, check-in call Friday, executive presentation Monday
+Commercial Terms Discussed: Pricing reduction, payment terms, satisfaction guarantee, implementation scope
