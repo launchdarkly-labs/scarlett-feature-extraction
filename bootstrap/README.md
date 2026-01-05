@@ -80,11 +80,6 @@ If you see extraction happening but with minimal fields, LaunchDarkly may not be
 2. **Verify connection:**
    The app will log LaunchDarkly connection status on startup.
 
-## Development vs Production
-
-- **Development:** Can work without LaunchDarkly (uses fallback extraction)
-- **Production:** Requires LaunchDarkly for full feature extraction
-
 ## Field Naming
 
 The UI handles multiple field name variants:

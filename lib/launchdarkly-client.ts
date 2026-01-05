@@ -49,9 +49,18 @@ function getLDClient(): ld.LDClient {
 async function ensureInitialized(): Promise<void> {
   if (!initializationPromise) {
     const client = getLDClient();
-    initializationPromise = client.waitForInitialization().then(() => {
-      // Convert to void promise
+    // Use Promise.race to implement timeout
+    initializationPromise = Promise.race([
+      client.waitForInitialization(),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('LaunchDarkly initialization timeout after 5s')), 5000)
+      )
+    ]).then(() => {
+      console.log("LaunchDarkly client initialized successfully");
       return;
+    }).catch((err) => {
+      console.error("LaunchDarkly initialization failed:", err);
+      throw err;
     });
   }
 
@@ -59,14 +68,11 @@ async function ensureInitialized(): Promise<void> {
 }
 
 /**
- * Creates a Vercel AI model from LaunchDarkly configuration using dynamic imports.
- *
- * This function mimics VercelProvider.createVercelModel() but uses dynamic imports
- * in a way that Next.js can handle properly. The imports only happen at runtime,
- * not during the build phase.
+ * Creates a Vercel AI Gateway model from LaunchDarkly configuration.
+ * Routes ALL models through Vercel AI Gateway using the OpenAI-compatible interface.
  *
  * @param aiConfig - The AI configuration from LaunchDarkly containing provider and model info
- * @returns A LanguageModel instance from the appropriate @ai-sdk package
+ * @returns A LanguageModel instance that routes through Vercel AI Gateway
  */
 async function createVercelModel(aiConfig: any): Promise<any> {
   const providerName = VercelProvider.mapProvider(
@@ -78,40 +84,28 @@ async function createVercelModel(aiConfig: any): Promise<any> {
     throw new Error("Model name is required in AI configuration");
   }
 
-  console.log(`Creating model - Provider: ${providerName}, Model: ${modelName}`);
+  // Construct the gateway model ID: "provider/model"
+  // e.g., "google/gemini-2.0-flash", "anthropic/claude-3-5-sonnet"
+  const gatewayModelId = `${providerName}/${modelName}`;
+  console.log(`Creating Vercel AI Gateway model: ${gatewayModelId}`);
 
-  switch (providerName.toLowerCase()) {
-    case "openai":
-      try {
-        const { openai } = await import("@ai-sdk/openai");
-        return openai(modelName);
-      } catch (error) {
-        throw new Error(`Failed to load OpenAI provider: ${error}`);
-      }
-
-    case "anthropic":
-      try {
-        const { anthropic } = await import("@ai-sdk/anthropic");
-        return anthropic(modelName);
-      } catch (error) {
-        throw new Error(`Failed to load Anthropic provider: ${error}`);
-      }
-
-    case "google":
-    case "gemini":
-    case "google-vertex-ai":
-      try {
-        const { google } = await import("@ai-sdk/google");
-        return google(modelName);
-      } catch (error) {
-        throw new Error(`Failed to load Google provider: ${error}`);
-      }
-
-    default:
-      throw new Error(
-        `Unsupported provider: ${providerName}. Supported: openai, anthropic, google`
-      );
+  // Get API key for Vercel AI Gateway
+  const apiKey = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY || "";
+  if (!apiKey) {
+    throw new Error("No Vercel AI Gateway API key found. Set VERCEL_OIDC_TOKEN or AI_GATEWAY_API_KEY");
   }
+
+  // Use ONLY the OpenAI interface from Vercel AI SDK
+  // This works for ALL providers through Vercel AI Gateway
+  const { createOpenAI } = await import("@ai-sdk/openai");
+  const vercelGateway = createOpenAI({
+    baseURL: "https://ai-gateway.vercel.sh/v1",
+    apiKey: apiKey,
+  });
+
+  // Use the chat model interface explicitly for all providers
+  // This ensures it uses /chat/completions endpoint instead of /responses
+  return vercelGateway.chat(gatewayModelId);
 }
 
 export class LaunchDarklyAIClient {
@@ -135,9 +129,15 @@ export class LaunchDarklyAIClient {
     transcript: string;
     jsonSchema: Record<string, any>;
   }): Promise<any> {
-    const { configKey, context, transcript, jsonSchema } = params;
+    const { configKey, context, transcript, jsonSchema: responseSchema } = params;
+
+    // Ensure client is initialized before each flag evaluation
+    await ensureInitialized();
 
     // Get the AI config from LaunchDarkly
+    console.log(`Requesting AI Config: ${configKey}`);
+    console.log(`With context:`, JSON.stringify(context, null, 2));
+
     const aiConfig = await this.ldClient.jsonVariation(
       configKey,
       context,
@@ -149,6 +149,7 @@ export class LaunchDarklyAIClient {
     }
 
     console.log(`Using AI Config: ${configKey}`);
+    console.log(`Received variation:`, (aiConfig as any)._ldMeta?.variationKey || 'unknown');
 
     try {
       // Create the Vercel model using dynamic imports
@@ -159,8 +160,14 @@ export class LaunchDarklyAIClient {
         (aiConfig as any).model?.parameters || {}
       );
 
-      // Create VercelProvider instance
-      const provider = new VercelProvider(model, parameters);
+      // Create VercelProvider instance with a logger to see errors
+      const logger = {
+        error: (message: string, ...args: any[]) => console.error(`VercelProvider Error: ${message}`, ...args),
+        warn: (message: string, ...args: any[]) => console.warn(`VercelProvider Warning: ${message}`, ...args),
+        info: (message: string, ...args: any[]) => console.log(`VercelProvider Info: ${message}`, ...args),
+        debug: (message: string, ...args: any[]) => console.debug(`VercelProvider Debug: ${message}`, ...args)
+      };
+      const provider = new VercelProvider(model, parameters, logger);
 
       // Get messages from config
       const systemPrompt =
@@ -172,17 +179,37 @@ export class LaunchDarklyAIClient {
         { role: "user" as const, content: `Transcript:\n\n${transcript}` },
       ];
 
+      // Log the schema being used
+      console.log("Using JSON Schema:", JSON.stringify(responseSchema, null, 2).slice(0, 500) + "...");
+      console.log("Message count:", messages.length);
+      console.log("System message preview:", messages[0].content.slice(0, 200) + "...");
+
       // Use invokeStructuredModel for structured output
+      // The SDK will wrap the schema with jsonSchema internally
       const response = await provider.invokeStructuredModel(
         messages,
-        jsonSchema
+        responseSchema
       );
 
-      console.log("Structured extraction successful");
+      console.log("Structured extraction response received");
+      console.log("Response metrics:", JSON.stringify(response.metrics, null, 2));
 
-      // Extract the value from the response
-      // VercelProvider returns { value: {...}, metrics: {...} }
-      return (response as any).value || response;
+      // The SDK's invokeStructuredModel returns { data, rawResponse, metrics }
+      // The actual extracted data is in response.data
+      if (!response.metrics?.success) {
+        console.error("SDK invocation failed - metrics.success is false");
+        console.error("Full response:", JSON.stringify(response, null, 2));
+        throw new Error("AI invocation failed");
+      }
+
+      if (!response.data || Object.keys(response.data).length === 0) {
+        console.error("SDK returned empty data object despite success");
+        console.error("Full response:", JSON.stringify(response, null, 2));
+        throw new Error("Extraction returned no data");
+      }
+
+      console.log("Extraction successful, data keys:", Object.keys(response.data));
+      return response.data;
     } catch (error: any) {
       console.error("Feature extraction error:", error);
       throw new Error(`Feature extraction failed: ${error?.message || error}`);
@@ -246,6 +273,9 @@ export class LaunchDarklyAIClient {
     context: ld.LDContext
   ): Promise<any | null> {
     try {
+      // Ensure client is initialized before each flag evaluation
+      await ensureInitialized();
+
       const config = await this.ldClient.jsonVariation(
         configKey,
         context,
@@ -272,11 +302,20 @@ export class LaunchDarklyAIClient {
     kind: string = "transcript",
     attributes?: Record<string, any>
   ): ld.LDContext {
-    return {
+    // For custom contexts, attributes should be at the root level
+    // The SDK will handle them correctly when evaluating rules
+    const context: ld.LDContext = {
       kind,
       key,
       ...attributes,
     };
+
+    console.log(`Created context with kind '${kind}' and key '${key}'`);
+    if (attributes?.variation_hint) {
+      console.log(`Context includes variation_hint: ${attributes.variation_hint}`);
+    }
+
+    return context;
   }
 
   async close(): Promise<void> {
@@ -296,11 +335,20 @@ export function createContext(
   kind: string = "transcript",
   attributes?: Record<string, any>
 ): ld.LDContext {
-  return {
+  // For custom contexts, attributes should be at the root level
+  // The SDK will handle them correctly when evaluating rules
+  const context: ld.LDContext = {
     kind,
     key,
     ...attributes,
   };
+
+  console.log(`Created context with kind '${kind}' and key '${key}'`);
+  if (attributes?.variation_hint) {
+    console.log(`Context includes variation_hint: ${attributes.variation_hint}`);
+  }
+
+  return context;
 }
 
 export async function extractJSONSchemaFromTools(
