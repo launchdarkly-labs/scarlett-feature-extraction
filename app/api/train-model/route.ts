@@ -86,8 +86,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Note: bodyParser is disabled by default in App Router
+// No config export needed
