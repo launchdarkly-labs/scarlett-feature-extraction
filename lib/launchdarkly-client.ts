@@ -49,7 +49,10 @@ function getLDClient(): ld.LDClient {
 async function ensureInitialized(): Promise<void> {
   if (!initializationPromise) {
     const client = getLDClient();
-    initializationPromise = client.waitForInitialization();
+    initializationPromise = client.waitForInitialization().then(() => {
+      // Convert to void promise
+      return;
+    });
   }
 
   await initializationPromise;
@@ -65,7 +68,7 @@ async function ensureInitialized(): Promise<void> {
  * @param aiConfig - The AI configuration from LaunchDarkly containing provider and model info
  * @returns A LanguageModel instance from the appropriate @ai-sdk package
  */
-async function createVercelModel(aiConfig: any): Promise<LanguageModel> {
+async function createVercelModel(aiConfig: any): Promise<any> {
   const providerName = VercelProvider.mapProvider(
     aiConfig.provider?.name || aiConfig.model?.provider || ""
   );
@@ -153,7 +156,7 @@ export class LaunchDarklyAIClient {
 
       // Map parameters using VercelProvider's utility
       const parameters = VercelProvider.mapParameters(
-        aiConfig.model?.parameters || {}
+        (aiConfig as any).model?.parameters || {}
       );
 
       // Create VercelProvider instance
