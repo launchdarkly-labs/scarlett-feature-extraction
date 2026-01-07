@@ -81,6 +81,10 @@ export default function Home() {
   const [trainTestSplit, setTrainTestSplit] = useState(80);
   const [minSamplesForTraining, setMinSamplesForTraining] = useState(100);
 
+  // Check if we're on Vercel - ML training not available there
+  // Check the hostname at runtime since this is a client component
+  const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       // Filter: only .txt and .md files, excluding system files
@@ -549,17 +553,18 @@ export default function Home() {
           </div>
         )}
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              🤖 ML Model Training
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Train a two-stage deal prediction model on your extracted data
-            </p>
-          </div>
+        {!isVercel ? (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                🤖 ML Model Training
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Train a two-stage deal prediction model on your extracted data
+              </p>
+            </div>
 
-          <div className="space-y-4">
+            <div className="space-y-4">
             {/* Data Source Selection */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">Data Source</h4>
@@ -658,6 +663,24 @@ export default function Home() {
             </button>
           </div>
         </div>
+        ) : (
+          <div className="mt-6 pt-6 border-t border-gray-200 bg-gray-50 rounded-lg p-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                🤖 ML Model Training
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                ML model training is not available on Vercel deployments
+              </p>
+              <p className="text-xs text-gray-500">
+                To use ML features, run the app locally with Docker:
+              </p>
+              <div className="mt-3 bg-gray-900 text-white rounded px-3 py-2 font-mono text-xs inline-block">
+                docker-compose up
+              </div>
+            </div>
+          </div>
+        )}
 
         {showMetrics && modelMetrics && (
           <div className="mt-6 space-y-6">

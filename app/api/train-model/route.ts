@@ -26,9 +26,19 @@ export async function POST(request: NextRequest) {
     // Detect environment - Docker and Vercel don't need venv
     const isDocker = process.env.DOCKER === 'true';
     const isVercel = process.env.VERCEL === '1';
-    const pythonCmd = (isDocker || isVercel)
-      ? 'python3'
-      : 'source venv/bin/activate && python';
+
+    // ML training is not available on Vercel
+    if (isVercel) {
+      return NextResponse.json(
+        {
+          error: "ML model training is not available on Vercel deployments. Please use Docker (docker-compose up) or local development for ML features.",
+          isVercel: true
+        },
+        { status: 503 }
+      );
+    }
+
+    const pythonCmd = isDocker ? 'python3' : 'source venv/bin/activate && python';
 
     if (useDemo) {
       // Use sample training data file (pre-existing)
