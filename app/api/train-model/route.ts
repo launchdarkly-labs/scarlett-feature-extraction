@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Running command:", command);
 
     // Execute Python script with bash shell
     const { stdout, stderr } = await execPromise(command, {
@@ -56,12 +55,11 @@ export async function POST(request: NextRequest) {
       try {
         await unlink(tempFilePath);
       } catch (err) {
-        console.error("Failed to delete temp file:", err);
+        // Ignore temp file deletion errors
       }
     }
 
     if (stderr && stderr.includes("error")) {
-      console.error("Python stderr:", stderr);
       throw new Error(stderr);
     }
 
@@ -74,8 +72,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(metrics);
   } catch (error: any) {
-    console.error("Model training error:", error);
-
     return NextResponse.json(
       {
         success: false,

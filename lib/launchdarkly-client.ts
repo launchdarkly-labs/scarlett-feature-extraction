@@ -1,27 +1,14 @@
 /**
  * LaunchDarkly AI SDK Implementation for Next.js
  *
- * This implementation uses the official LaunchDarkly AI SDK pattern with initAi()
- * and proper integration with Vercel AI Gateway through VercelProvider.
- *
- * ARCHITECTURE:
- * 1. Initialize LaunchDarkly client (singleton)
- * 2. Initialize AI client using initAi()
- * 3. Get AI configs using completionConfig()
- * 4. Convert configs to Vercel format using VercelProvider.toVercelAISDK()
- * 5. Use Vercel AI SDK's generateObject() for structured output
- * 6. Track metrics using aiConfig.tracker.trackMetricsOf()
- *
- * This implementation is compatible with:
- * - Local development (npm run dev)
- * - Docker builds
- * - Vercel deployments
+ * Provides seamless integration between LaunchDarkly AI configs and Vercel AI Gateway.
+ * Compatible with local development, Docker, and Vercel deployments.
  */
 
 import * as ld from "@launchdarkly/node-server-sdk";
 import { initAi } from "@launchdarkly/server-sdk-ai";
 import { VercelProvider } from "@launchdarkly/server-sdk-ai-vercel";
-import { generateObject, jsonSchema as createJsonSchema } from "ai";
+// Note: generateObject is imported but not currently used
 
 // Singleton instances
 let ldClientInstance: ld.LDClient | null = null;
@@ -77,10 +64,8 @@ async function ensureInitialized(): Promise<void> {
         setTimeout(() => reject(new Error('LaunchDarkly initialization timeout after 5s')), 5000)
       )
     ]).then(() => {
-      console.log("LaunchDarkly client initialized successfully");
       return;
     }).catch((err) => {
-      console.error("LaunchDarkly initialization failed:", err);
       throw err;
     });
   }
@@ -124,8 +109,6 @@ export class LaunchDarklyAIClient {
     this.ensureLDClient();
     await ensureInitialized();
 
-    console.error("[EXTRACT] Client initialized, fetching AI config:", configKey);
-
     try {
       // Get the AI config using the SDK's completionConfig method
       const aiConfig = await this.aiClient!.completionConfig(
@@ -134,10 +117,7 @@ export class LaunchDarklyAIClient {
         { enabled: false }
       );
 
-      console.error("[EXTRACT] AI Config retrieved. Enabled:", aiConfig?.enabled, "Has tools:", !!(aiConfig?.model?.parameters?.tools));
-
       if (!aiConfig || !aiConfig.enabled) {
-        console.error("[EXTRACT] ERROR: AI Config not found or disabled");
         throw new Error(`AI Config '${configKey}' not found or disabled`);
       }
 
@@ -175,9 +155,6 @@ export class LaunchDarklyAIClient {
         throw new Error("No Vercel AI Gateway API key found. Set AI_GATEWAY_API_KEY environment variable");
       }
 
-      console.error("[DEBUG] Running on Vercel:", isVercelDeployment);
-      console.error("[DEBUG] API key source:", isVercelDeployment ? "AI_GATEWAY_API_KEY (forced)" : (process.env.VERCEL_OIDC_TOKEN ? "VERCEL_OIDC_TOKEN" : "AI_GATEWAY_API_KEY"));
-      console.error("[DEBUG] API key length:", apiKey.length);
 
       // Create the OpenAI interface for Vercel AI Gateway
       const { createOpenAI } = await import("@ai-sdk/openai");
@@ -205,43 +182,17 @@ export class LaunchDarklyAIClient {
         { role: "user" as const, content: `Transcript:\n\n${transcript}` },
       ];
 
-      console.error("[EXTRACT] Calling invokeStructuredModel with model:", gatewayModelId);
-      console.error("[EXTRACT] API key length:", apiKey.length);
-      console.error("[EXTRACT] Schema keys:", Object.keys(jsonSchema).join(", "));
-
       // Use invokeStructuredModel for structured output
       const response = await provider.invokeStructuredModel(
         messages,
         jsonSchema
       );
 
-      console.error("[EXTRACT] LLM response received. Type:", typeof response);
-      console.error("[EXTRACT] Response keys:", response ? Object.keys(response).join(", ") : "null");
-
-      // Debug the actual data content
-      const responseData = (response as any).data;
-      const responseValue = (response as any).value;
-      const rawResponse = (response as any).rawResponse;
-      console.error("[EXTRACT] response.data type:", typeof responseData);
-      console.error("[EXTRACT] response.data:", responseData === null ? "null" : responseData === undefined ? "undefined" : JSON.stringify(responseData).substring(0, 500));
-      console.error("[EXTRACT] response.value type:", typeof responseValue);
-      console.error("[EXTRACT] response.value:", responseValue === null ? "null" : responseValue === undefined ? "undefined" : JSON.stringify(responseValue).substring(0, 200));
-      console.error("[EXTRACT] rawResponse type:", typeof rawResponse);
-      console.error("[EXTRACT] rawResponse headers:", rawResponse?.headers ? Object.keys(rawResponse.headers).join(", ") : "no headers");
-
-      // Check if there's an error message
-      if (rawResponse?.error || rawResponse?.message) {
-        console.error("[EXTRACT] ERROR in rawResponse:", rawResponse.error || rawResponse.message);
-      }
-
       // VercelProvider.invokeStructuredModel returns: { data: {...}, rawResponse: {...}, metrics: {...} }
-      const result = responseData || responseValue || response;
-      console.error("[EXTRACT] Extracted result fields:", Object.keys(result || {}).length);
+      const result = (response as any).data || (response as any).value || response;
 
       return result;
     } catch (error: any) {
-      console.error("[EXTRACT] Feature extraction error:", error);
-      console.error("[EXTRACT] Error stack:", error?.stack);
       throw new Error(`Feature extraction failed: ${error?.message || error}`);
     }
   }
@@ -266,7 +217,6 @@ export class LaunchDarklyAIClient {
     const tools = aiConfig.model?.parameters?.tools;
 
     if (!tools || tools.length === 0) {
-      console.log("No tools found in config");
       return null;
     }
 
@@ -280,15 +230,11 @@ export class LaunchDarklyAIClient {
 
       // Tool is a reference - this shouldn't happen in production
       if (tool.key && !tool.parameters) {
-        console.error(
-          "ERROR: LaunchDarkly returned tool reference instead of full schema"
-        );
         return null;
       }
 
       return null;
     } catch (error) {
-      console.error("Failed to extract JSON Schema from tools:", error);
       return null;
     }
   }
@@ -313,13 +259,11 @@ export class LaunchDarklyAIClient {
       );
 
       if (!config || !config.enabled) {
-        console.warn(`AI Config '${configKey}' not found or disabled`);
         return null;
       }
 
       return config;
     } catch (error) {
-      console.error(`Failed to fetch AI Config '${configKey}':`, error);
       return null;
     }
   }

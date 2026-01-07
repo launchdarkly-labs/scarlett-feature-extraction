@@ -79,8 +79,6 @@ export class TranscriptPipeline {
 
       const extractionContext = createContext(transcriptId, "transcript");
 
-      console.error("[PIPELINE] Starting extraction for:", transcriptFile.name);
-      console.error("[PIPELINE] Transcript length:", transcriptFile.content.length);
 
       // Extract features using unified config
       const features = await this.ldAIClient.extractStructuredFeatures({
@@ -89,7 +87,6 @@ export class TranscriptPipeline {
         transcript: transcriptFile.content,
       });
 
-      console.error("[PIPELINE] Extraction complete. Features received:", Object.keys(features || {}).length, "fields");
 
       // Infer which tool type was most appropriate based on call_category
       // Normalize: lowercase and replace spaces with underscores
@@ -158,7 +155,6 @@ export class TranscriptPipeline {
       const transcript = transcripts[i];
       const transcriptId = `transcript_${i + 1}`;
 
-      console.log(`[${i + 1}/${transcripts.length}] Processing ${transcript.name}...`);
 
       if (onProgress) {
         onProgress({

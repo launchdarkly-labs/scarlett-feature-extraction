@@ -87,7 +87,6 @@ export async function POST(request: NextRequest) {
 
         controller.close();
       } catch (error) {
-        console.error("Extraction error:", error);
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({
           type: 'error',
           message: error instanceof Error ? error.message : 'Processing failed'
