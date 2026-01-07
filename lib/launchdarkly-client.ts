@@ -221,10 +221,18 @@ export class LaunchDarklyAIClient {
       // Debug the actual data content
       const responseData = (response as any).data;
       const responseValue = (response as any).value;
+      const rawResponse = (response as any).rawResponse;
       console.error("[EXTRACT] response.data type:", typeof responseData);
-      console.error("[EXTRACT] response.data:", responseData === null ? "null" : responseData === undefined ? "undefined" : JSON.stringify(responseData).substring(0, 200));
+      console.error("[EXTRACT] response.data:", responseData === null ? "null" : responseData === undefined ? "undefined" : JSON.stringify(responseData).substring(0, 500));
       console.error("[EXTRACT] response.value type:", typeof responseValue);
       console.error("[EXTRACT] response.value:", responseValue === null ? "null" : responseValue === undefined ? "undefined" : JSON.stringify(responseValue).substring(0, 200));
+      console.error("[EXTRACT] rawResponse type:", typeof rawResponse);
+      console.error("[EXTRACT] rawResponse headers:", rawResponse?.headers ? Object.keys(rawResponse.headers).join(", ") : "no headers");
+
+      // Check if there's an error message
+      if (rawResponse?.error || rawResponse?.message) {
+        console.error("[EXTRACT] ERROR in rawResponse:", rawResponse.error || rawResponse.message);
+      }
 
       // VercelProvider.invokeStructuredModel returns: { data: {...}, rawResponse: {...}, metrics: {...} }
       const result = responseData || responseValue || response;
