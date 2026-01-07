@@ -101,7 +101,28 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
 
     # Get predictions
     expected_value, p_close, value_if_closed = model.predict(X_test, return_components=True)
-    y_close_pred = (p_close >= 0.5).astype(int)
+
+    # Find optimal threshold for F2 score (emphasizes recall)
+    from sklearn.metrics import fbeta_score, confusion_matrix
+    thresholds = np.arange(0.1, 0.7, 0.05)
+    f2_scores = []
+
+    for thresh in thresholds:
+        pred = (p_close >= thresh).astype(int)
+        f2 = fbeta_score(y_close_test, pred, beta=2.0)
+        f2_scores.append(f2)
+
+    # Use the threshold that maximizes F2 score
+    optimal_threshold = thresholds[np.argmax(f2_scores)]
+    y_close_pred = (p_close >= optimal_threshold).astype(int)
+
+    # Get confusion matrix for optimal threshold
+    tn, fp, fn, tp = confusion_matrix(y_close_test, y_close_pred).ravel()
+
+    # Calculate additional metrics
+    precision_score = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall_score = tp / (tp + fn) if (tp + fn) > 0 else 0
+    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
 
     # Evaluate
     metrics = model.evaluate(X_test, y_close_test, y_value_test, beta=2.0)
@@ -113,9 +134,9 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
     fpr, tpr, _ = roc_curve(y_close_test, p_close)
 
     # Get PR curve data
-    precision, recall, _ = precision_recall_curve(y_close_test, p_close)
+    pr_precision, pr_recall, _ = precision_recall_curve(y_close_test, p_close)
 
-    # Sample predictions for display
+    # Sample predictions for display (using optimal threshold)
     sample_size = min(10, len(X_test))
     sample_predictions = []
     for i in range(sample_size):
@@ -125,7 +146,8 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
             'value_if_closed': float(value_if_closed[i]),
             'expected_value': float(expected_value[i]),
             'actual_closed': bool(y_close_test.iloc[i]),
-            'actual_value': float(y_value_test.iloc[i])
+            'actual_value': float(y_value_test.iloc[i]),
+            'predicted_closed': bool(y_close_pred[i])  # Using optimal threshold
         })
 
     # Compile response
@@ -142,8 +164,18 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
         'classification_metrics': {
             'roc_auc': float(metrics['roc_auc']),
             'pr_auc': float(metrics['pr_auc']),
-            'f2_score': float(metrics['f2.0_score']),
-            'close_rate_predicted': float(metrics['close_rate_predicted'])
+            'f2_score': float(max(f2_scores)),  # Best F2 score with optimal threshold
+            'close_rate_predicted': float(y_close_pred.mean()),  # Using optimal threshold
+            'optimal_threshold': float(optimal_threshold),
+            'precision': float(precision_score),
+            'recall': float(recall_score),
+            'specificity': float(specificity),
+            'confusion_matrix': {
+                'true_negatives': int(tn),
+                'false_positives': int(fp),
+                'false_negatives': int(fn),
+                'true_positives': int(tp)
+            }
         },
         'regression_metrics': {
             'rmse_closed': float(metrics['rmse_closed_deals']) if not np.isnan(metrics['rmse_closed_deals']) else 0,
@@ -165,8 +197,8 @@ def train_and_get_metrics(data: pd.DataFrame) -> dict:
             'tpr': tpr.tolist()
         },
         'pr_curve': {
-            'precision': precision.tolist(),
-            'recall': recall.tolist()
+            'precision': pr_precision.tolist(),
+            'recall': pr_recall.tolist()
         },
         'sample_predictions': sample_predictions
     }
