@@ -15,10 +15,8 @@ services:
       - NODE_ENV=development
       - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY}
       - AI_GATEWAY_API_KEY=${AI_GATEWAY_API_KEY}
-      - VERCEL_OIDC_TOKEN=${VERCEL_OIDC_TOKEN}
-    env_file:
-      - .env.local
-    command: sh -c "npm install && npm run dev"
+      # VERCEL_OIDC_TOKEN is read from mounted .env.local by Next.js at runtime
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
     networks:
       - app-network
     healthcheck:

@@ -1,19 +1,19 @@
 /**
- * Two-Stage Transcript Extraction Pipeline
+ * Single-Stage Transcript Extraction Pipeline using LaunchDarkly AI Configs
  *
- * Stage 1: Classification - Determines call type and routes to appropriate variation (A-F)
- * Stage 2: Feature Extraction - Extracts structured data based on call type
+ * This pipeline processes sales transcripts through one unified AI stage:
+ * - Uses the "transcript-extraction-unified" AI Config from LaunchDarkly
+ * - AI automatically selects the appropriate extraction tool (A-F) based on call type
+ * - Extracts structured data in a single LLM call
+ * - Returns 40-65 fields depending on which tool was selected
  *
- * Supports optional progress callbacks for real-time status updates via SSE.
+ * The implementation uses the official @launchdarkly/server-sdk-ai-vercel pattern
  */
 
 import {
-  LaunchDarklyAIConfigClient,
+  LaunchDarklyAIClient,
   createContext,
-  extractJSONSchemaFromTools,
 } from "./launchdarkly-client";
-import { VercelAIClient, mapLDToVercelModel } from "./vercel-client";
-import { getVariationForCategory } from "./variation-mapping";
 
 export interface TranscriptFile {
   name: string;
@@ -25,14 +25,10 @@ export interface ExtractionResult {
   success: boolean;
   data?: Record<string, any>;
   error?: string;
-  classification?: {
-    category: string;
-    variation: string;
-  };
 }
 
 export interface ProgressUpdate {
-  type: 'start' | 'classification' | 'extraction' | 'complete' | 'error';
+  type: 'start' | 'extraction' | 'complete' | 'error';
   current: number;
   total: number;
   filename: string;
@@ -43,16 +39,14 @@ export interface ProgressUpdate {
 export type ProgressCallback = (update: ProgressUpdate) => void;
 
 export class TranscriptPipeline {
-  private ldClient: LaunchDarklyAIConfigClient;
-  private vercelClient: VercelAIClient;
+  private ldAIClient: LaunchDarklyAIClient;
 
   constructor() {
-    this.ldClient = new LaunchDarklyAIConfigClient();
-    this.vercelClient = new VercelAIClient();
+    this.ldAIClient = new LaunchDarklyAIClient();
   }
 
   async initialize(): Promise<void> {
-    await this.ldClient.waitForInitialization();
+    await this.ldAIClient.initialize();
   }
 
   async processTranscript(
@@ -71,73 +65,7 @@ export class TranscriptPipeline {
         throw new Error("File content too short for analysis (minimum 50 characters)");
       }
 
-      // STAGE 1: CLASSIFICATION
-      if (onProgress && current !== undefined && total !== undefined) {
-        onProgress({
-          type: 'classification',
-          current,
-          total,
-          filename: transcriptFile.name,
-          message: `Classifying ${transcriptFile.name}...`,
-          percentage: Math.round(((current - 1) / total) * 100)
-        });
-      }
-      const classificationContext = createContext(transcriptId, "transcript");
-      const classificationConfig = await this.ldClient.getAIConfig(
-        "transcript-classification",
-        classificationContext
-      );
-
-      if (!classificationConfig) {
-        throw new Error("Classification config not found");
-      }
-
-      const classificationSchema = await extractJSONSchemaFromTools(
-        classificationConfig
-      );
-      if (!classificationSchema) {
-        throw new Error("Classification schema not found in tools");
-      }
-
-      if (!classificationConfig.model || !classificationConfig.model.name) {
-        throw new Error(`Classification config missing model information. Config: ${JSON.stringify(classificationConfig)}`);
-      }
-
-      const classificationModel = mapLDToVercelModel(
-        classificationConfig.model.name
-      );
-      const classificationPrompt =
-        classificationConfig.messages?.[0]?.content ||
-        this.vercelClient.getDefaultExtractionPrompt();
-
-      const classification = await this.vercelClient.extractFeatures({
-        transcript: transcriptFile.content,
-        model: classificationModel,
-        systemPrompt: classificationPrompt,
-        temperature: classificationConfig.model.parameters?.temperature || 0,
-        jsonSchema: classificationSchema,
-      });
-
-      console.log("Classification result:", JSON.stringify(classification, null, 2));
-
-      // Validate classification returned structured data
-      if (!classification || typeof classification !== 'object') {
-        throw new Error("Classification failed to return valid response");
-      }
-
-      // Determine which extraction variation (A-F) to use
-      const primaryVariation =
-        classification.primary_variation ||
-        getVariationForCategory(classification.call_category);
-
-      if (!primaryVariation) {
-        console.warn("⚠️  No variation could be determined from classification, defaulting to 'B'");
-      }
-
-      const finalVariation = primaryVariation || "B"; // Default to Variation B (Discovery)
-      console.log("Primary variation determined:", finalVariation);
-
-      // STAGE 2: FEATURE EXTRACTION
+      // The AI will automatically select the appropriate extraction tool (A-F) based on content
       if (onProgress && current !== undefined && total !== undefined) {
         onProgress({
           type: 'extraction',
@@ -148,55 +76,50 @@ export class TranscriptPipeline {
           percentage: Math.round(((current - 0.5) / total) * 100)
         });
       }
-      const extractionContext = createContext(transcriptId, "transcript", {
-        variation_hint: finalVariation,
-        call_category: classification.call_category,
-        customer_segment: classification.customer_segment,
-      });
 
-      console.log("Extraction context:", JSON.stringify(extractionContext, null, 2));
+      const extractionContext = createContext(transcriptId, "transcript");
 
-      const extractionConfig = await this.ldClient.getAIConfig(
-        "sales-transcript-extraction",
-        extractionContext
-      );
+      console.error("[PIPELINE] Starting extraction for:", transcriptFile.name);
+      console.error("[PIPELINE] Transcript length:", transcriptFile.content.length);
 
-      if (!extractionConfig) {
-        throw new Error("Extraction config not found");
-      }
-
-      console.log("Extraction config received:", JSON.stringify(extractionConfig, null, 2));
-
-      const extractionSchema = await extractJSONSchemaFromTools(extractionConfig);
-      if (!extractionSchema) {
-        throw new Error("Extraction schema not found in tools");
-      }
-
-      if (!extractionConfig.model || !extractionConfig.model.name) {
-        throw new Error(`Extraction config missing model information. Config: ${JSON.stringify(extractionConfig)}`);
-      }
-
-      const extractionModel = mapLDToVercelModel(extractionConfig.model.name);
-      const extractionPrompt =
-        extractionConfig.messages?.[0]?.content ||
-        this.vercelClient.getDefaultExtractionPrompt();
-
-      const features = await this.vercelClient.extractFeatures({
+      // Extract features using unified config
+      const features = await this.ldAIClient.extractStructuredFeatures({
+        configKey: "transcript-extraction-unified",
+        context: extractionContext,
         transcript: transcriptFile.content,
-        model: extractionModel,
-        systemPrompt: extractionPrompt,
-        temperature: extractionConfig.model.parameters?.temperature || 0,
-        jsonSchema: extractionSchema,
       });
+
+      console.error("[PIPELINE] Extraction complete. Features received:", Object.keys(features || {}).length, "fields");
+
+      // Infer which tool type was most appropriate based on call_category
+      // Normalize: lowercase and replace spaces with underscores
+      const callCategory = (features.call_category || 'unknown')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+
+      const toolMapping: Record<string, string> = {
+        'prospecting': 'extract_prospecting_features',
+        'discovery': 'extract_discovery_features',
+        'qualification': 'extract_discovery_features',
+        'demo': 'extract_demo_features',
+        'product_demo': 'extract_demo_features',
+        'proposal': 'extract_proposal_features',
+        'negotiation': 'extract_proposal_features',
+        'technical': 'extract_technical_features',
+        'customer_success': 'extract_customer_success_features',
+        'renewal': 'extract_customer_success_features',
+      };
+      const toolUsed = toolMapping[callCategory] || 'unknown';
+
+      // Remove variation_used field (legacy from old approach)
+      const { variation_used, ...cleanFeatures } = features;
 
       // Combine extracted features with metadata
       const result = {
         source_file: transcriptFile.name,
-        ...features,
+        tool_used: toolUsed,
+        ...cleanFeatures,
         transcript_id: transcriptId,
-        variation_used: primaryVariation,
-        classification_model_used: classificationModel,
-        extraction_model_used: extractionModel,
         extraction_timestamp: new Date().toISOString(),
       };
 
@@ -204,10 +127,6 @@ export class TranscriptPipeline {
         filename: transcriptFile.name,
         success: true,
         data: result,
-        classification: {
-          category: classification.call_category,
-          variation: finalVariation,
-        },
       };
     } catch (error) {
       // Translate technical errors into user-friendly messages
@@ -261,30 +180,24 @@ export class TranscriptPipeline {
       );
       results.push(result);
 
-      if (result.success) {
-        console.log(`  ✓ Success - Variation ${result.classification?.variation}`);
-        if (onProgress) {
-          onProgress({
-            type: 'complete',
-            current: i + 1,
-            total: transcripts.length,
-            filename: transcript.name,
-            message: `Completed ${transcript.name}`,
-            percentage: Math.round(((i + 1) / transcripts.length) * 100)
-          });
-        }
-      } else {
-        console.log(`  ✗ Failed: ${result.error}`);
-        if (onProgress) {
-          onProgress({
-            type: 'error',
-            current: i + 1,
-            total: transcripts.length,
-            filename: transcript.name,
-            message: `Failed: ${result.error}`,
-            percentage: Math.round(((i + 1) / transcripts.length) * 100)
-          });
-        }
+      if (result.success && onProgress) {
+        onProgress({
+          type: 'complete',
+          current: i + 1,
+          total: transcripts.length,
+          filename: transcript.name,
+          message: `Completed ${transcript.name}`,
+          percentage: Math.round(((i + 1) / transcripts.length) * 100)
+        });
+      } else if (!result.success && onProgress) {
+        onProgress({
+          type: 'error',
+          current: i + 1,
+          total: transcripts.length,
+          filename: transcript.name,
+          message: `Failed: ${result.error}`,
+          percentage: Math.round(((i + 1) / transcripts.length) * 100)
+        });
       }
     }
 
@@ -292,6 +205,6 @@ export class TranscriptPipeline {
   }
 
   async close(): Promise<void> {
-    await this.ldClient.close();
+    await this.ldAIClient.close();
   }
 }

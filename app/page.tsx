@@ -178,7 +178,7 @@ export default function Home() {
                 filename: ""
               });
             } else if (data.type) {
-              // Progress update (start, classification, extraction, complete)
+              // Progress update (start, extraction, complete)
               setProgressState({
                 percentage: data.percentage,
                 message: data.message,
