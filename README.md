@@ -69,13 +69,7 @@ Extracts 40-65 fields in single LLM call
 CSV downloads automatically
 ```
 
-**Architecture Benefits:**
-- ✅ 1 LLM call per transcript (not 2)
-- ✅ 50% faster than multi-stage approaches
-- ✅ 40-60% cheaper
-- ✅ AI contextually selects optimal schema
-
-### 6 Extraction Schemas (A-F)
+### 6 Extraction Schemas
 
 The AI automatically selects the best schema based on transcript content:
 
@@ -349,31 +343,3 @@ Non-streaming extraction (for testing).
 **Returns:** `{ success: true, csvData: "...", results: [...] }`
 
 ---
-
-## Performance
-
-| Metric | Value |
-|--------|-------|
-| **Latency per transcript** | ~4-5s (single LLM call) |
-| **Cost per transcript** | $0.01-0.03 (model dependent) |
-| **Throughput** | 10-15 transcripts/minute |
-| **Accuracy** | 85-95% (varies by call type) |
-
-**Optimization tips:**
-- Use faster models for simple calls (Gemini Flash)
-- Use premium models for complex calls (Claude Sonnet)
-- Implement LaunchDarkly targeting rules for dynamic routing
-
----
-
-## License
-
-MIT
-
----
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/anthropics/claude-code/issues)
-- **LaunchDarkly Docs**: [AI Configs Guide](https://docs.launchdarkly.com/home/ai)
-- **Vercel AI SDK**: [Documentation](https://sdk.vercel.ai/docs)
