@@ -5,8 +5,7 @@
  *
  * Progress event types:
  * - start: File processing begins
- * - classification: AI classification stage
- * - extraction: Feature extraction stage
+ * - extraction: AI extraction stage (unified - AI selects appropriate tool)
  * - complete: File successfully processed
  * - error: Individual file error (processing continues)
  * - done: All files processed, CSV ready for download

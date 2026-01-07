@@ -21,7 +21,7 @@
 import * as ld from "@launchdarkly/node-server-sdk";
 import { initAi } from "@launchdarkly/server-sdk-ai";
 import { VercelProvider } from "@launchdarkly/server-sdk-ai-vercel";
-import { generateObject, jsonSchema } from "ai";
+import { generateObject, jsonSchema as createJsonSchema } from "ai";
 
 // Singleton instances
 let ldClientInstance: ld.LDClient | null = null;
@@ -54,7 +54,7 @@ function mapLDModelToVercel(ldModelName: string): string {
 
 function getLDClient(): ld.LDClient {
   if (!ldClientInstance) {
-    const sdkKey = process.env.LAUNCHDARKLY_SDK_KEY;
+    const sdkKey = process.env.LAUNCHDARKLY_SDK_KEY?.trim();
 
     if (!sdkKey) {
       throw new Error(
@@ -89,78 +89,96 @@ async function ensureInitialized(): Promise<void> {
 }
 
 export class LaunchDarklyAIClient {
-  private ldClient: ld.LDClient;
-  private aiClient: any;
+  private ldClient: ld.LDClient | null = null;
+  private aiClient: any = null;
 
   constructor() {
-    this.ldClient = getLDClient();
-    // Initialize AI client using the official SDK pattern
-    this.aiClient = initAi(this.ldClient);
+    // Don't initialize here - let it be lazy loaded
+  }
+
+  private ensureLDClient(): ld.LDClient {
+    if (!this.ldClient) {
+      this.ldClient = getLDClient();
+      this.aiClient = initAi(this.ldClient);
+    }
+    return this.ldClient;
   }
 
   async initialize(): Promise<void> {
+    this.ensureLDClient();
     await ensureInitialized();
   }
 
   /**
    * Extract structured features from a transcript using AI Config
-   * Following the official SDK pattern with completionConfig() and VercelProvider.toVercelAISDK()
+   * Uses the working invokeStructuredModel() approach with unified AI Config
    */
   async extractStructuredFeatures(params: {
     configKey: string;
     context: ld.LDContext;
     transcript: string;
-    jsonSchema: Record<string, any>;
   }): Promise<any> {
-    const { configKey, context, transcript, jsonSchema: responseSchema } = params;
+    const { configKey, context, transcript } = params;
 
     // Ensure client is initialized before each flag evaluation
+    this.ensureLDClient();
     await ensureInitialized();
 
-    console.log(`Requesting AI Config: ${configKey}`);
-    console.log(`With context:`, JSON.stringify(context, null, 2));
+    console.error("[EXTRACT] Client initialized, fetching AI config:", configKey);
 
     try {
       // Get the AI config using the SDK's completionConfig method
-      const aiConfig = await this.aiClient.completionConfig(
+      const aiConfig = await this.aiClient!.completionConfig(
         configKey,
         context,
         { enabled: false }
       );
 
+      console.error("[EXTRACT] AI Config retrieved. Enabled:", aiConfig?.enabled, "Has tools:", !!(aiConfig?.model?.parameters?.tools));
+
       if (!aiConfig || !aiConfig.enabled) {
+        console.error("[EXTRACT] ERROR: AI Config not found or disabled");
         throw new Error(`AI Config '${configKey}' not found or disabled`);
       }
 
-      console.log(`Using AI Config: ${configKey}`);
-      console.log(`Config enabled:`, aiConfig.enabled);
-      console.log(`Model:`, aiConfig.model?.name);
-      console.log(`Provider:`, aiConfig.provider?.name);
+      // Extract JSON schema from the first tool (all tools share same core fields)
+      const tools = aiConfig.model?.parameters?.tools || [];
+      if (!tools || tools.length === 0) {
+        throw new Error("No tools found in AI config");
+      }
 
-      // Get the model name from aiConfig (not aiConfig.config!)
+      const jsonSchema = tools[0].parameters;
+
+      // Get model name and provider
       const ldModelName = aiConfig.model?.name;
       const providerName = VercelProvider.mapProvider(aiConfig.provider?.name || "");
 
       if (!ldModelName) {
-        console.error("Model name not found in aiConfig");
         throw new Error("Model name is required in AI configuration");
       }
 
       // Map LD model name to Vercel-compatible name
       const vercelModelName = mapLDModelToVercel(ldModelName);
 
-      // Log the mapping for debugging
-      if (ldModelName !== vercelModelName) {
-        console.log(`Model mapping: ${ldModelName} → ${vercelModelName}`);
-      }
-
       // Construct the gateway model ID: "provider/model"
       const gatewayModelId = `${providerName}/${vercelModelName}`;
 
-      // Get API key for Vercel AI Gateway
-      const apiKey = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY || "";
+      // Get API key for Vercel AI Gateway (trim to remove any whitespace/newlines)
+      const vercelOidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+      const aiGatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
+
+      // On Vercel, prefer AI_GATEWAY_API_KEY if OIDC is expired/unavailable
+      const isVercel = process.env.VERCEL === '1';
+      const apiKey = isVercel ? (aiGatewayKey || vercelOidc || "") : (vercelOidc || aiGatewayKey || "");
+
+      console.error("[DEBUG] Running on Vercel:", isVercel);
+      console.error("[DEBUG] VERCEL_OIDC_TOKEN available:", !!vercelOidc, "length:", vercelOidc?.length || 0);
+      console.error("[DEBUG] AI_GATEWAY_API_KEY available:", !!aiGatewayKey, "length:", aiGatewayKey?.length || 0);
+      console.error("[DEBUG] Using:", apiKey === vercelOidc ? "VERCEL_OIDC_TOKEN" : apiKey === aiGatewayKey ? "AI_GATEWAY_API_KEY" : "NONE");
+
       if (!apiKey) {
-        throw new Error("No Vercel AI Gateway API key found. Set VERCEL_OIDC_TOKEN or AI_GATEWAY_API_KEY");
+        console.error("[ERROR] No API key available. VERCEL_OIDC_TOKEN:", process.env.VERCEL_OIDC_TOKEN ? "SET" : "NOT SET", "AI_GATEWAY_API_KEY:", process.env.AI_GATEWAY_API_KEY ? "SET" : "NOT SET");
+        throw new Error("No Vercel AI Gateway API key found");
       }
 
       // Create the OpenAI interface for Vercel AI Gateway
@@ -170,57 +188,46 @@ export class LaunchDarklyAIClient {
         apiKey: apiKey,
       });
 
-      // Create a provider function that returns the model for the given ID
-      // This function is called by VercelProvider.toVercelAISDK()
-      const providerFunction = (modelId: string) => {
-        console.log(`Provider function called with modelId: ${modelId}`);
-        // Return the chat model for the gateway model ID
-        return vercelGateway.chat(gatewayModelId);
-      };
+      const model = vercelGateway.chat(gatewayModelId);
 
-      // Prepare user message
-      const userMessage = {
-        role: "user" as const,
-        content: `Transcript:\n\n${transcript}`,
-      };
-
-      // Convert AI config to Vercel AI SDK format
-      // Pass the entire aiConfig, not aiConfig.config!
-      const vercelConfig = VercelProvider.toVercelAISDK(aiConfig, providerFunction, {
-        nonInterpolatedMessages: [userMessage],
-      });
-
-      console.log("VercelConfig keys:", Object.keys(vercelConfig));
-      console.log("VercelConfig.model:", vercelConfig.model);
-      console.log("Using JSON Schema with", Object.keys(responseSchema.properties || {}).length, "properties");
-
-      // Wrap the schema using jsonSchema() from Vercel AI SDK
-      const schema = jsonSchema(responseSchema);
-
-      // Use generateObject for structured output with metrics tracking
-      const result = await aiConfig.tracker.trackMetricsOf(
-        VercelProvider.getAIMetricsFromResponse,
-        () => generateObject({
-          ...vercelConfig,
-          messages: vercelConfig.messages ?? [],
-          schema: schema,
-        } as any)
+      // Map parameters using VercelProvider's utility
+      const parameters = VercelProvider.mapParameters(
+        aiConfig.model?.parameters || {}
       );
 
-      console.log("Structured extraction response received");
-      console.log("Result keys:", Object.keys(result));
+      // Create VercelProvider instance (using type assertion to handle version mismatches)
+      const provider = new VercelProvider(model as any, parameters);
 
-      // The result from generateObject contains { object, finishReason, usage }
-      if (!result.object || Object.keys(result.object).length === 0) {
-        console.error("SDK returned empty object despite completion");
-        console.error("Finish reason:", result.finishReason);
-        throw new Error("Extraction returned no data");
-      }
+      // Get system prompt from config messages
+      const systemPrompt = aiConfig.config?.messages?.[0]?.content ||
+        "Extract structured information from the provided transcript.";
 
-      console.log("Extraction successful, data keys:", Object.keys(result.object));
-      return result.object;
+      const messages = [
+        { role: "system" as const, content: systemPrompt },
+        { role: "user" as const, content: `Transcript:\n\n${transcript}` },
+      ];
+
+      console.error("[EXTRACT] Calling invokeStructuredModel with model:", gatewayModelId);
+      console.error("[EXTRACT] API key length:", apiKey.length);
+      console.error("[EXTRACT] Schema keys:", Object.keys(jsonSchema).join(", "));
+
+      // Use invokeStructuredModel for structured output
+      const response = await provider.invokeStructuredModel(
+        messages,
+        jsonSchema
+      );
+
+      console.error("[EXTRACT] LLM response received. Type:", typeof response);
+      console.error("[EXTRACT] Response keys:", response ? Object.keys(response).join(", ") : "null");
+
+      // VercelProvider.invokeStructuredModel returns: { value: {...}, metrics: {...} }
+      const result = (response as any).value || response;
+      console.error("[EXTRACT] Extracted result fields:", Object.keys(result || {}).length);
+
+      return result;
     } catch (error: any) {
-      console.error("Feature extraction error:", error);
+      console.error("[EXTRACT] Feature extraction error:", error);
+      console.error("[EXTRACT] Error stack:", error?.stack);
       throw new Error(`Feature extraction failed: ${error?.message || error}`);
     }
   }
@@ -282,9 +289,10 @@ export class LaunchDarklyAIClient {
   ): Promise<any | null> {
     try {
       // Ensure client is initialized before each flag evaluation
+      this.ensureLDClient();
       await ensureInitialized();
 
-      const config = await this.aiClient.completionConfig(
+      const config = await this.aiClient!.completionConfig(
         configKey,
         context,
         { enabled: false }
@@ -310,18 +318,11 @@ export class LaunchDarklyAIClient {
     kind: string = "transcript",
     attributes?: Record<string, any>
   ): ld.LDContext {
-    const context: ld.LDContext = {
+    return {
       kind,
       key,
       ...attributes,
     };
-
-    console.log(`Created context with kind '${kind}' and key '${key}'`);
-    if (attributes?.variation_hint) {
-      console.log(`Context includes variation_hint: ${attributes.variation_hint}`);
-    }
-
-    return context;
   }
 
   async close(): Promise<void> {
@@ -341,18 +342,11 @@ export function createContext(
   kind: string = "transcript",
   attributes?: Record<string, any>
 ): ld.LDContext {
-  const context: ld.LDContext = {
+  return {
     kind,
     key,
     ...attributes,
   };
-
-  console.log(`Created context with kind '${kind}' and key '${key}'`);
-  if (attributes?.variation_hint) {
-    console.log(`Context includes variation_hint: ${attributes.variation_hint}`);
-  }
-
-  return context;
 }
 
 export async function extractJSONSchemaFromTools(

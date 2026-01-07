@@ -1,89 +1,6 @@
 {
-  "description": "Copy-paste tool schemas for LaunchDarkly AI Configs",
-  "note": "These JSON Schemas define the structured outputs for each variation. Paste the tool object into the 'tools' array in LaunchDarkly AI Config UI.",
-
-  "classification_tool": {
-    "type": "function",
-    "function": {
-      "name": "classify_transcript",
-      "description": "Classify sales call transcript and determine routing variation",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "call_category": {
-            "type": "string",
-            "enum": ["prospecting_outbound", "early_stage_post_rko", "further_stages_connected", "solutions_engineering", "customer_success", "product_research", "other"],
-            "description": "Primary category of the call"
-          },
-          "call_stage": {
-            "type": "string",
-            "description": "Stage in the sales process (discovery, qualification, demo, proposal, negotiation, closing, post_sale)"
-          },
-          "primary_variation": {
-            "type": "string",
-            "enum": ["A", "B", "C", "D", "E", "F"],
-            "description": "Which extraction variation to use (A=prospecting, B=discovery, C=demo, D=proposal, E=technical, F=customer success)"
-          },
-          "is_multi_faceted": {
-            "type": "boolean",
-            "description": "Whether this call covers multiple areas"
-          },
-          "secondary_variation": {
-            "type": "string",
-            "enum": ["A", "B", "C", "D", "E", "F"],
-            "description": "Optional secondary variation if call is multi-faceted"
-          },
-          "estimated_deal_value": {
-            "type": "integer",
-            "description": "Estimated deal value in USD"
-          },
-          "customer_segment": {
-            "type": "string",
-            "enum": ["startup", "small", "medium", "enterprise", "large_enterprise"],
-            "description": "Company size classification"
-          },
-          "industry": {
-            "type": "string",
-            "enum": ["technology", "finance", "healthcare", "retail", "manufacturing", "education", "government", "other"],
-            "description": "Industry vertical"
-          },
-          "region": {
-            "type": "string",
-            "enum": ["us_east", "us_west", "emea", "apac", "latam", "unknown"],
-            "description": "Geographic region"
-          },
-          "complexity_score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Complexity of the call from 0 (simple) to 1 (very complex)"
-          },
-          "call_duration_estimate": {
-            "type": "string",
-            "enum": ["under_5_min", "5_15_min", "15_30_min", "30_60_min", "over_60_min"],
-            "description": "Estimated call duration bucket"
-          },
-          "has_multiple_stakeholders": {
-            "type": "boolean",
-            "description": "Whether multiple stakeholders were on the call"
-          },
-          "has_technical_discussion": {
-            "type": "boolean",
-            "description": "Whether technical topics were discussed"
-          },
-          "has_competitors_mentioned": {
-            "type": "boolean",
-            "description": "Whether competitors were mentioned"
-          },
-          "has_pricing_discussion": {
-            "type": "boolean",
-            "description": "Whether pricing was discussed"
-          }
-        },
-        "required": ["call_category", "call_stage", "primary_variation", "estimated_deal_value", "customer_segment", "industry", "complexity_score", "call_duration_estimate", "has_multiple_stakeholders", "has_technical_discussion", "has_competitors_mentioned", "has_pricing_discussion"]
-      }
-    }
-  },
+  "description": "Tool schemas for LaunchDarkly unified AI Config with intelligent tool selection",
+  "note": "The AI automatically selects the most appropriate extraction schema (A-F) based on transcript content. All 6 tools are attached to a single unified variation.",
 
   "core_fields_note": "These 40 core fields MUST be included in ALL variation tools (A-F) for consistent reporting and optimal ML model performance",
 
@@ -92,7 +9,6 @@
     "customer_company_name": {"type": "string", "description": "Name of the customer company"},
     "salesperson_name": {"type": "string", "description": "Name of the salesperson on the call"},
     "call_number": {"type": "integer", "description": "Sequence number for this customer (1st call, 2nd call, etc.)"},
-    "variation_used": {"type": "string", "description": "Variation letter used for extraction (A, B, C, D, E, F)"},
     "call_date": {"type": "string", "description": "Date of the call in ISO format (YYYY-MM-DD)"},
     "call_duration_minutes": {"type": "number", "description": "Duration of the call in minutes"},
     "call_time": {"type": "string", "description": "Time of the call (HH:MM in 24h format)"},
@@ -127,7 +43,6 @@
     "technical_term_count": {"type": "integer", "minimum": 0, "maximum": 500, "description": "Count of technical terms mentioned including: Infrastructure (API, SDK, integration, webhook, database), Security (authentication, encryption, SSO, SAML, OAuth), Architecture (microservices, scalability, redundancy, failover), Deployment (cloud, on-premise, hybrid, containerization). Count each unique term once."},
     "pricing_mention_count": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Number of times pricing, cost, budget, or money was explicitly mentioned"},
     "competitor_mention_count": {"type": "integer", "minimum": 0, "maximum": 50, "description": "Number of times competitor names or alternative solutions were mentioned"},
-    "classification_model_used": {"type": "string", "description": "Model used for classification"},
     "extraction_model_used": {"type": "string", "description": "Model used for extraction"},
     "extraction_timestamp": {"type": "string", "description": "ISO timestamp when extraction was performed"}
   },
@@ -151,7 +66,7 @@
           "callback_date": {"type": "string", "description": "Date/time of scheduled callback"},
           "email_sent": {"type": "boolean", "description": "Whether a follow-up email was promised/sent"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "call_outcome", "gatekeeper_encountered", "reached_target_contact", "interest_level", "pain_point_mentioned"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "call_outcome", "gatekeeper_encountered", "reached_target_contact", "interest_level", "pain_point_mentioned"]
       }
     }
   },
@@ -180,7 +95,7 @@
           "qualification_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "BANT qualification score 0-1"},
           "recommended_next_step": {"type": "string", "description": "Recommended next step based on qualification"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "budget_confirmed", "authority_level", "need_validated", "pain_points", "qualification_score"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "budget_confirmed", "authority_level", "need_validated", "pain_points", "qualification_score"]
       }
     }
   },
@@ -219,7 +134,7 @@
           "objections_resolved": {"type": "boolean", "description": "Whether objections were resolved"},
           "proposal_requested": {"type": "boolean", "description": "Whether customer requested a proposal"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "features_demonstrated", "use_cases_discussed", "technical_fit_score", "demo_effectiveness_score"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "features_demonstrated", "use_cases_discussed", "technical_fit_score", "demo_effectiveness_score"]
       }
     }
   },
@@ -253,7 +168,7 @@
           "expected_close_date": {"type": "string", "description": "Expected close date"},
           "blockers_to_close": {"type": "array", "items": {"type": "string"}, "description": "Blockers preventing close"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "proposal_reviewed", "pricing_discussed", "close_probability"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "proposal_reviewed", "pricing_discussed", "close_probability"]
       }
     }
   },
@@ -297,7 +212,7 @@
           "technical_fit_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Technical fit score 0-1"},
           "technical_risk_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Technical risk score 0-1"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "technical_requirements", "architecture_discussed", "deployment_model", "technical_fit_score", "technical_risk_score"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "technical_requirements", "architecture_discussed", "deployment_model", "technical_fit_score", "technical_risk_score"]
       }
     }
   },
@@ -331,22 +246,8 @@
           "roi_metrics": {"type": "string", "description": "ROI metrics shared by customer"},
           "referral_potential": {"type": "boolean", "description": "Whether customer could provide referrals"}
         },
-        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "variation_used", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "classification_model_used", "extraction_model_used", "extraction_timestamp", "account_health_score", "satisfaction_score", "product_adoption_level", "renewal_likelihood"]
+        "required": ["transcript_id", "customer_company_name", "salesperson_name", "call_number", "call_date", "call_duration_minutes", "call_category", "deal_stage", "customer_size", "industry", "estimated_deal_value", "overall_sentiment_score", "sentiment_about_product", "sentiment_about_pricing", "customer_engagement_score", "urgency_score", "budget_confidence_score", "next_steps_defined", "competitors_mentioned", "decision_makers_present", "extraction_model_used", "extraction_timestamp", "account_health_score", "satisfaction_score", "product_adoption_level", "renewal_likelihood"]
       }
     }
-  },
-
-  "usage_instructions": {
-    "step_1": "Go to LaunchDarkly → AI Configs",
-    "step_2_classification": "Create AI Config named 'transcript-classification' and paste the 'classification_tool' above into the tools array",
-    "step_3_extraction": "Create AI Config named 'sales-transcript-extraction' with 6 variations",
-    "step_4_variation_a": "For Variation A, paste 'variation_a_prospecting' tool (remember to include all 33 core fields + 10 prospecting fields)",
-    "step_5_variation_b": "For Variation B, paste 'variation_b_discovery' tool (33 core + 15 discovery fields)",
-    "step_6_variation_c": "For Variation C, paste 'variation_c_demo' tool (33 core + 25 demo fields)",
-    "step_7_variation_d": "For Variation D, paste 'variation_d_proposal' tool (33 core + 20 proposal fields)",
-    "step_8_variation_e": "For Variation E, paste 'variation_e_technical' tool (33 core + 30 technical fields)",
-    "step_9_variation_f": "For Variation F, paste 'variation_f_customer_success' tool (33 core + 20 CS fields)",
-    "step_10_targeting": "Set targeting rules to route based on 'variation_hint' context attribute",
-    "note": "The '_note' fields in each variation are for reference only - you can remove them when pasting into LaunchDarkly. Make sure to manually add all 33 core fields to each variation's properties!"
   }
 }

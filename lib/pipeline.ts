@@ -1,28 +1,19 @@
 /**
- * Two-Stage Transcript Extraction Pipeline using LaunchDarkly AI Configs
+ * Single-Stage Transcript Extraction Pipeline using LaunchDarkly AI Configs
  *
- * This pipeline processes sales transcripts through two AI stages:
- *
- * Stage 1: Classification
- * - Uses the "transcript-classification" AI Config from LaunchDarkly
- * - Determines the call type (discovery, demo, negotiation, etc.)
- * - Routes to the appropriate extraction variation (A-F)
- *
- * Stage 2: Feature Extraction
- * - Uses the "sales-transcript-extraction" AI Config from LaunchDarkly
- * - Extracts structured data based on the call type
- * - Returns 60+ fields of structured information
+ * This pipeline processes sales transcripts through one unified AI stage:
+ * - Uses the "transcript-extraction-unified" AI Config from LaunchDarkly
+ * - AI automatically selects the appropriate extraction tool (A-F) based on call type
+ * - Extracts structured data in a single LLM call
+ * - Returns 40-65 fields depending on which tool was selected
  *
  * The implementation uses the official @launchdarkly/server-sdk-ai-vercel pattern
- * with Next.js-specific workarounds for bundling issues (see launchdarkly-client.ts)
  */
 
 import {
   LaunchDarklyAIClient,
   createContext,
-  extractJSONSchemaFromTools,
 } from "./launchdarkly-client";
-import { getVariationForCategory } from "./variation-mapping";
 
 export interface TranscriptFile {
   name: string;
@@ -34,14 +25,10 @@ export interface ExtractionResult {
   success: boolean;
   data?: Record<string, any>;
   error?: string;
-  classification?: {
-    category: string;
-    variation: string;
-  };
 }
 
 export interface ProgressUpdate {
-  type: 'start' | 'classification' | 'extraction' | 'complete' | 'error';
+  type: 'start' | 'extraction' | 'complete' | 'error';
   current: number;
   total: number;
   filename: string;
@@ -78,71 +65,7 @@ export class TranscriptPipeline {
         throw new Error("File content too short for analysis (minimum 50 characters)");
       }
 
-      // STAGE 1: CLASSIFICATION
-      if (onProgress && current !== undefined && total !== undefined) {
-        onProgress({
-          type: 'classification',
-          current,
-          total,
-          filename: transcriptFile.name,
-          message: `Classifying ${transcriptFile.name}...`,
-          percentage: Math.round(((current - 1) / total) * 100)
-        });
-      }
-
-      const classificationContext = createContext(transcriptId, "transcript");
-
-      // Get classification config
-      const classificationConfig = await this.ldAIClient.getAIConfig(
-        "transcript-classification",
-        classificationContext
-      );
-
-      if (!classificationConfig) {
-        throw new Error("Classification config not found");
-      }
-
-      // Extract schema for classification
-      const classificationSchema = await extractJSONSchemaFromTools(
-        classificationConfig
-      );
-
-      if (!classificationSchema) {
-        throw new Error("Classification schema not found in tools");
-      }
-
-      // TEST: Log which prompt source is being used
-      console.log("📝 Classification prompt source:",
-        classificationConfig.messages?.[0]?.content ? "LaunchDarkly" : "DEFAULT (ERROR!)");
-
-      // Extract classification features
-      const classification = await this.ldAIClient.extractStructuredFeatures({
-        configKey: "transcript-classification",
-        context: classificationContext,
-        transcript: transcriptFile.content,
-        jsonSchema: classificationSchema,
-      });
-
-      console.log("Classification result:", JSON.stringify(classification, null, 2));
-
-      // Validate classification returned structured data
-      if (!classification || typeof classification !== 'object') {
-        throw new Error("Classification failed to return valid response");
-      }
-
-      // Determine which extraction variation (A-F) to use
-      const primaryVariation =
-        classification.primary_variation ||
-        getVariationForCategory(classification.call_category);
-
-      if (!primaryVariation) {
-        console.warn("⚠️  No variation could be determined from classification, defaulting to 'B'");
-      }
-
-      const finalVariation = primaryVariation || "B"; // Default to Variation B (Discovery)
-      console.log("Primary variation determined:", finalVariation);
-
-      // STAGE 2: FEATURE EXTRACTION
+      // The AI will automatically select the appropriate extraction tool (A-F) based on content
       if (onProgress && current !== undefined && total !== undefined) {
         onProgress({
           type: 'extraction',
@@ -154,55 +77,49 @@ export class TranscriptPipeline {
         });
       }
 
-      const extractionContext = createContext(transcriptId, "transcript", {
-        variation_hint: finalVariation,
-        call_category: classification.call_category,
-        customer_segment: classification.customer_segment,
-      });
+      const extractionContext = createContext(transcriptId, "transcript");
 
-      console.log("Extraction context:", JSON.stringify(extractionContext, null, 2));
+      console.error("[PIPELINE] Starting extraction for:", transcriptFile.name);
+      console.error("[PIPELINE] Transcript length:", transcriptFile.content.length);
 
-      // Get extraction config
-      const extractionConfig = await this.ldAIClient.getAIConfig(
-        "sales-transcript-extraction",
-        extractionContext
-      );
-
-      if (!extractionConfig) {
-        throw new Error("Extraction config not found");
-      }
-
-      // Extract schema for extraction
-      const extractionSchema = await extractJSONSchemaFromTools(extractionConfig);
-      if (!extractionSchema) {
-        throw new Error("Extraction schema not found in tools");
-      }
-
-      // TEST: Log which prompt source is being used
-      console.log("📝 Extraction prompt source:",
-        extractionConfig.messages?.[0]?.content ? "LaunchDarkly" : "DEFAULT (ERROR!)");
-
-      // Extract features
+      // Extract features using unified config
       const features = await this.ldAIClient.extractStructuredFeatures({
-        configKey: "sales-transcript-extraction",
+        configKey: "transcript-extraction-unified",
         context: extractionContext,
         transcript: transcriptFile.content,
-        jsonSchema: extractionSchema,
       });
 
-      // Get model names from configs
-      // With completionConfig(), the model is at the top level
-      const classificationModel = classificationConfig.model?.name || "unknown";
-      const extractionModel = extractionConfig.model?.name || "unknown";
+      console.error("[PIPELINE] Extraction complete. Features received:", Object.keys(features || {}).length, "fields");
+
+      // Infer which tool type was most appropriate based on call_category
+      // Normalize: lowercase and replace spaces with underscores
+      const callCategory = (features.call_category || 'unknown')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+
+      const toolMapping: Record<string, string> = {
+        'prospecting': 'extract_prospecting_features',
+        'discovery': 'extract_discovery_features',
+        'qualification': 'extract_discovery_features',
+        'demo': 'extract_demo_features',
+        'product_demo': 'extract_demo_features',
+        'proposal': 'extract_proposal_features',
+        'negotiation': 'extract_proposal_features',
+        'technical': 'extract_technical_features',
+        'customer_success': 'extract_customer_success_features',
+        'renewal': 'extract_customer_success_features',
+      };
+      const toolUsed = toolMapping[callCategory] || 'unknown';
+
+      // Remove variation_used field (legacy from old approach)
+      const { variation_used, ...cleanFeatures } = features;
 
       // Combine extracted features with metadata
       const result = {
         source_file: transcriptFile.name,
-        ...features,
+        tool_used: toolUsed,
+        ...cleanFeatures,
         transcript_id: transcriptId,
-        variation_used: primaryVariation,
-        classification_model_used: classificationModel,
-        extraction_model_used: extractionModel,
         extraction_timestamp: new Date().toISOString(),
       };
 
@@ -210,10 +127,6 @@ export class TranscriptPipeline {
         filename: transcriptFile.name,
         success: true,
         data: result,
-        classification: {
-          category: classification.call_category,
-          variation: finalVariation,
-        },
       };
     } catch (error) {
       // Translate technical errors into user-friendly messages
@@ -267,30 +180,24 @@ export class TranscriptPipeline {
       );
       results.push(result);
 
-      if (result.success) {
-        console.log(`  ✓ Success - Variation ${result.classification?.variation}`);
-        if (onProgress) {
-          onProgress({
-            type: 'complete',
-            current: i + 1,
-            total: transcripts.length,
-            filename: transcript.name,
-            message: `Completed ${transcript.name}`,
-            percentage: Math.round(((i + 1) / transcripts.length) * 100)
-          });
-        }
-      } else {
-        console.log(`  ✗ Failed: ${result.error}`);
-        if (onProgress) {
-          onProgress({
-            type: 'error',
-            current: i + 1,
-            total: transcripts.length,
-            filename: transcript.name,
-            message: `Failed: ${result.error}`,
-            percentage: Math.round(((i + 1) / transcripts.length) * 100)
-          });
-        }
+      if (result.success && onProgress) {
+        onProgress({
+          type: 'complete',
+          current: i + 1,
+          total: transcripts.length,
+          filename: transcript.name,
+          message: `Completed ${transcript.name}`,
+          percentage: Math.round(((i + 1) / transcripts.length) * 100)
+        });
+      } else if (!result.success && onProgress) {
+        onProgress({
+          type: 'error',
+          current: i + 1,
+          total: transcripts.length,
+          filename: transcript.name,
+          message: `Failed: ${result.error}`,
+          percentage: Math.round(((i + 1) / transcripts.length) * 100)
+        });
       }
     }
 
