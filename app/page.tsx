@@ -223,15 +223,17 @@ export default function Home() {
           totalSentiment += parseFloat(row['overall_sentiment_score'] || '0');
           totalEngagement += parseFloat(row['customer_engagement_score'] || '0');
           totalUrgency += parseFloat(row['urgency_score'] || '0');
-          nextStepsDefined += row['next_steps_defined'] === 'true' || row['next_steps_defined'] === '1' ? 1 : 0;
-          competitorsMentioned += row['competitors_mentioned'] === 'true' || row['competitors_mentioned'] === '1' ? 1 : 0;
+
+          // Handle boolean values - they come as 'true'/'false' strings from CSV
+          nextStepsDefined += row['next_steps_defined'] === 'true' ? 1 : 0;
+          competitorsMentioned += row['competitors_mentioned'] === 'true' ? 1 : 0;
           // Handle different possible field names for word count
           const wordCount = row['transcript_word_count'] || row['text_word_count'] || row['word_count'];
           totalWordCount += parseInt(wordCount || '0');
 
-          // Handle question count field
-          const questionCount = row['customer_question_count'] || row['question_count'];
-          totalQuestions += parseInt(questionCount || '0');
+          // Handle question count field - it can be empty string in CSV
+          const questionCount = row['customer_question_count'] || row['question_count'] || '0';
+          totalQuestions += parseInt(questionCount) || 0;
 
         });
 

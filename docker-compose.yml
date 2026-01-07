@@ -1,22 +1,26 @@
 version: '3.8'
 
 services:
-  # Next.js web application
+  # Next.js web application with Python for ML
   web:
-    image: node:18-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.web
     working_dir: /app
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
+      - /app/venv
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - DOCKER=true
       - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY}
       - AI_GATEWAY_API_KEY=${AI_GATEWAY_API_KEY}
       # VERCEL_OIDC_TOKEN is read from mounted .env.local by Next.js at runtime
-    command: sh -c "npm install --legacy-peer-deps && npm run dev"
+    command: npm run dev
     networks:
       - app-network
     healthcheck:

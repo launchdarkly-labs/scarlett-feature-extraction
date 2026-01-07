@@ -23,9 +23,17 @@ export async function POST(request: NextRequest) {
     let command: string;
     let tempFilePath: string | null = null;
 
+    // Detect environment - Docker and Vercel don't need venv
+    const isDocker = process.env.DOCKER === 'true';
+    const isVercel = process.env.VERCEL === '1';
+    const pythonCmd = (isDocker || isVercel)
+      ? 'python3'
+      : 'source venv/bin/activate && python';
+
     if (useDemo) {
-      // Use demo synthetic data
-      command = "source venv/bin/activate && python ml/train_and_return_metrics.py --demo --samples 500";
+      // Use sample training data file (pre-existing)
+      const sampleDataPath = path.join(process.cwd(), 'examples', 'sample_training_data.csv');
+      command = `${pythonCmd} ml/train_and_return_metrics.py --csv "${sampleDataPath}"`;
     } else if (csvFile) {
       // Save uploaded CSV to temp file
       const bytes = await csvFile.arrayBuffer();
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
       tempFilePath = path.join(tmpdir(), `training_data_${Date.now()}.csv`);
       await writeFile(tempFilePath, buffer);
 
-      command = `source venv/bin/activate && python ml/train_and_return_metrics.py --csv "${tempFilePath}"`;
+      command = `${pythonCmd} ml/train_and_return_metrics.py --csv "${tempFilePath}"`;
     } else {
       return NextResponse.json(
         { error: "Either useDemo=true or csvFile must be provided" },
