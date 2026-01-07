@@ -163,23 +163,15 @@ export class LaunchDarklyAIClient {
       // Construct the gateway model ID: "provider/model"
       const gatewayModelId = `${providerName}/${vercelModelName}`;
 
-      // Get API key for Vercel AI Gateway (trim to remove any whitespace/newlines)
-      const vercelOidc = process.env.VERCEL_OIDC_TOKEN?.trim();
-      const aiGatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
-
-      // On Vercel, prefer AI_GATEWAY_API_KEY if OIDC is expired/unavailable
-      const isVercel = process.env.VERCEL === '1';
-      const apiKey = isVercel ? (aiGatewayKey || vercelOidc || "") : (vercelOidc || aiGatewayKey || "");
-
-      console.error("[DEBUG] Running on Vercel:", isVercel);
-      console.error("[DEBUG] VERCEL_OIDC_TOKEN available:", !!vercelOidc, "length:", vercelOidc?.length || 0);
-      console.error("[DEBUG] AI_GATEWAY_API_KEY available:", !!aiGatewayKey, "length:", aiGatewayKey?.length || 0);
-      console.error("[DEBUG] Using:", apiKey === vercelOidc ? "VERCEL_OIDC_TOKEN" : apiKey === aiGatewayKey ? "AI_GATEWAY_API_KEY" : "NONE");
+      // Get API key for Vercel AI Gateway - simple fallback logic that worked before
+      const apiKey = process.env.VERCEL_OIDC_TOKEN?.trim() || process.env.AI_GATEWAY_API_KEY?.trim() || "";
 
       if (!apiKey) {
-        console.error("[ERROR] No API key available. VERCEL_OIDC_TOKEN:", process.env.VERCEL_OIDC_TOKEN ? "SET" : "NOT SET", "AI_GATEWAY_API_KEY:", process.env.AI_GATEWAY_API_KEY ? "SET" : "NOT SET");
-        throw new Error("No Vercel AI Gateway API key found");
+        throw new Error("No Vercel AI Gateway API key found. Set VERCEL_OIDC_TOKEN or AI_GATEWAY_API_KEY");
       }
+
+      console.error("[DEBUG] API key source:", process.env.VERCEL_OIDC_TOKEN ? "VERCEL_OIDC_TOKEN" : "AI_GATEWAY_API_KEY");
+      console.error("[DEBUG] API key length:", apiKey.length);
 
       // Create the OpenAI interface for Vercel AI Gateway
       const { createOpenAI } = await import("@ai-sdk/openai");
