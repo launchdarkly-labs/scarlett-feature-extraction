@@ -212,8 +212,16 @@ export class LaunchDarklyAIClient {
       console.error("[EXTRACT] LLM response received. Type:", typeof response);
       console.error("[EXTRACT] Response keys:", response ? Object.keys(response).join(", ") : "null");
 
+      // Debug the actual data content
+      const responseData = (response as any).data;
+      const responseValue = (response as any).value;
+      console.error("[EXTRACT] response.data type:", typeof responseData);
+      console.error("[EXTRACT] response.data:", responseData === null ? "null" : responseData === undefined ? "undefined" : JSON.stringify(responseData).substring(0, 200));
+      console.error("[EXTRACT] response.value type:", typeof responseValue);
+      console.error("[EXTRACT] response.value:", responseValue === null ? "null" : responseValue === undefined ? "undefined" : JSON.stringify(responseValue).substring(0, 200));
+
       // VercelProvider.invokeStructuredModel returns: { data: {...}, rawResponse: {...}, metrics: {...} }
-      const result = (response as any).data || (response as any).value || response;
+      const result = responseData || responseValue || response;
       console.error("[EXTRACT] Extracted result fields:", Object.keys(result || {}).length);
 
       return result;
