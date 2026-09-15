@@ -54,3 +54,6 @@ scripts/
 
 # ML training artifacts
 catboost_info/
+
+# Vercel CLI output (contains an OIDC token); pull fresh with `npx vercel env pull`
+.env.vercel
