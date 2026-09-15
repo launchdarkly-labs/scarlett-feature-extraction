@@ -22,5 +22,5 @@ Schemas are LaunchDarkly *tools*. Their JSON schemas live in `LAUNCHDARKLY_TOOLS
 
 ## Gotchas
 
-- `.env.vercel` is tracked in git and contains a `VERCEL_OIDC_TOKEN`. Treat it as expired; new tokens go in `.env` (gitignored) and stay out of commits.
+- `.env.vercel` is written by `npx vercel env pull` and is gitignored; it holds a short-lived `VERCEL_OIDC_TOKEN` and must stay out of commits (an old one is in git history).
 - `scripts/`, `TUTORIAL.md`, `check_config.py`, and `debug_config.py` are gitignored local-only files.
