@@ -7,7 +7,8 @@
  * - Extracts structured data in a single LLM call
  * - Returns 40-65 fields depending on which tool was selected
  *
- * The implementation uses the official @launchdarkly/server-sdk-ai-vercel pattern
+ * The implementation uses the @launchdarkly/ai-server handler pattern: the model call
+ * runs inside createHandler(...) and invoke() emits the metrics around it.
  */
 
 import {

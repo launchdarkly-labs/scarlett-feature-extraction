@@ -8,7 +8,7 @@ const nextConfig = {
      * NEXT.JS BUNDLING WORKAROUND for LaunchDarkly AI SDK
      *
      * The LaunchDarkly AI SDK uses dynamic imports to load provider-specific packages
-     * only when needed (e.g., import('@launchdarkly/server-sdk-ai-openai')).
+     * only when needed (e.g., import('@launchdarkly/ai-openai-messages')).
      *
      * Next.js statically analyzes these imports at build time and tries to bundle them,
      * even though they're optional and we don't have them installed.
@@ -20,8 +20,7 @@ const nextConfig = {
      */
     serverComponentsExternalPackages: [
       '@launchdarkly/node-server-sdk',
-      '@launchdarkly/server-sdk-ai',
-      '@launchdarkly/server-sdk-ai-vercel',
+      '@launchdarkly/ai-server',
     ],
   },
 
@@ -37,10 +36,8 @@ const nextConfig = {
        */
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@launchdarkly/server-sdk-ai-openai': false,
-        '@launchdarkly/server-sdk-ai-anthropic': false,
-        '@launchdarkly/server-sdk-ai-bedrock': false,
-        '@launchdarkly/server-sdk-ai-langchain': false,
+        '@launchdarkly/ai-openai-messages': false,
+        '@launchdarkly/ai-langchain-agents': false,
       };
     }
 
@@ -48,8 +45,8 @@ const nextConfig = {
     // in the build output to keep the console clean
     config.ignoreWarnings = [
       {
-        module: /@launchdarkly\/server-sdk-ai/,
-        message: /Module not found.*@launchdarkly\/server-sdk-ai-/,
+        module: /@launchdarkly\/ai-server/,
+        message: /Module not found.*@launchdarkly\/ai-/,
       },
     ];
 

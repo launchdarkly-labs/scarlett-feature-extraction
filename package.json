@@ -9,9 +9,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.89",
+    "@launchdarkly/ai-server": "0.3.0",
     "@launchdarkly/node-server-sdk": "^9.7.0",
-    "@launchdarkly/server-sdk-ai": "^0.15.2",
-    "@launchdarkly/server-sdk-ai-vercel": "^0.4.2",
     "ai": "^6.0.7",
     "next": "^14.2.0",
     "openai": "^4.75.0",

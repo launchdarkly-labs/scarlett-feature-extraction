@@ -2,7 +2,7 @@
 
 **Transform sales call transcripts into actionable CSV data with AI-powered sentiment analysis, business insights, and deal prediction.**
 
-Built with **LaunchDarkly AI Configs** and **Vercel AI Gateway** for dynamic schema management. Uses the official `@launchdarkly/server-sdk-ai-vercel` SDK with intelligent tool selection. Includes ML model training for deal prediction using CatBoost.
+Built with **LaunchDarkly AI Configs** and **Vercel AI Gateway** for dynamic schema management. Uses `@launchdarkly/ai-server` with a custom Vercel AI Gateway handler and intelligent tool selection. Includes ML model training for deal prediction using CatBoost.
 
 ## What You Get
 

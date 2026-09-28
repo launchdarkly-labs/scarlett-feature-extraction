@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Sales Call Transcript Extractor: a Next.js 14 app that turns uploaded sales-call transcripts into CSV rows of 40–65 fields. One LaunchDarkly AI Config (`transcript-extraction-unified`) carries six schema tools (A–F, one per call type); the model picks the schema and extracts in a single call through Vercel AI Gateway via `@launchdarkly/server-sdk-ai-vercel`. A Python side (`ml/`) trains a two-stage CatBoost deal-prediction model on the extracted CSVs. The upstream repo is `launchdarkly-labs/scarlett-feature-extraction`.
+Sales Call Transcript Extractor: a Next.js 14 app that turns uploaded sales-call transcripts into CSV rows of 40–65 fields. One LaunchDarkly AI Config (`transcript-extraction-unified`) carries six schema tools (A–F, one per call type); the model picks the schema and extracts in a single call through Vercel AI Gateway, driven by `config().invoke()` from `@launchdarkly/ai-server` with a custom handler (there is no first-party Vercel handler package). A Python side (`ml/`) trains a two-stage CatBoost deal-prediction model on the extracted CSVs. The upstream repo is `launchdarkly-labs/scarlett-feature-extraction`.
 
 ## Setup and commands
 
