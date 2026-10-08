@@ -26,14 +26,12 @@ cp .env.example .env
 #   LAUNCHDARKLY_SDK_KEY=sdk-xxxxx
 #   LD_API_KEY=api-xxxxx (for bootstrap only)
 #   LD_PROJECT_KEY=your-project (for bootstrap only)
+#   AI_GATEWAY_API_KEY=vck_xxxxx (Vercel dashboard > AI Gateway > API keys)
 
-# 3. Get Vercel AI Gateway token
-npx vercel env pull
-
-# 4. Bootstrap LaunchDarkly AI Config (one-time)
+# 3. Bootstrap LaunchDarkly AI Config (one-time)
 python bootstrap/create_unified_config.py
 
-# 5. Run
+# 4. Run
 npm run dev  # → http://localhost:3000
 ```
 
@@ -41,8 +39,7 @@ npm run dev  # → http://localhost:3000
 
 ```bash
 # 1. Configure environment
-cp .env.example .env  # Edit with your keys
-npx vercel env pull   # Get OIDC token
+cp .env.example .env  # Edit with your keys, including AI_GATEWAY_API_KEY
 
 # 2. Start services
 docker-compose up
@@ -119,14 +116,11 @@ LD_API_KEY=api-xxxxx                 # For bootstrap script only
 LD_PROJECT_KEY=your-project          # For bootstrap script only
 
 # Vercel AI Gateway (choose one)
-VERCEL_OIDC_TOKEN=eyJhbGc...         # Preferred - auto-refreshed
-AI_GATEWAY_API_KEY=vck_xxxxx         # Alternative - manual
+AI_GATEWAY_API_KEY=vck_xxxxx         # Vercel dashboard > AI Gateway > API keys
+# VERCEL_OIDC_TOKEN=eyJhbGc...       # Linked Vercel projects only; wins over the API key locally
 ```
 
-**Get OIDC token:**
-```bash
-npx vercel env pull  # Refresh every 12 hours
-```
+With a linked Vercel project you can use an OIDC token instead (`npx vercel env pull`, expires every 12 hours). Leave `VERCEL_OIDC_TOKEN` unset otherwise, because local dev prefers it over `AI_GATEWAY_API_KEY`.
 
 ---
 

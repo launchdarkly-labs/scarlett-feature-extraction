@@ -4,7 +4,7 @@ Sales Call Transcript Extractor: a Next.js 14 app that turns uploaded sales-call
 
 ## Setup and commands
 
-- Node: `npm install`, `cp .env.example .env`, then `npm run dev` (port 3000). `LAUNCHDARKLY_SDK_KEY` is required. For the AI Gateway, local dev uses `VERCEL_OIDC_TOKEN` (`npx vercel env pull`, expires every 12 h, a 401 means refresh it) and Vercel deployments use `AI_GATEWAY_API_KEY`; `lib/launchdarkly-client.ts` picks based on `VERCEL === '1'`.
+- Node: `npm install`, `cp .env.example .env`, then `npm run dev` (port 3000). `LAUNCHDARKLY_SDK_KEY` is required. For the AI Gateway, set `AI_GATEWAY_API_KEY`. Locally, `VERCEL_OIDC_TOKEN` (`npx vercel env pull`, expires every 12 h, a 401 means refresh it) takes precedence when set; Vercel deployments use only `AI_GATEWAY_API_KEY`. `lib/launchdarkly-client.ts` picks based on `VERCEL === '1'`.
 - Python: `python3 -m venv venv && source venv/bin/activate`, `pip install -r ml/requirements.txt` plus `requests python-dotenv` for the bootstrap. The `/api/train-model` route shells out to `source venv/bin/activate && python ml/train_and_return_metrics.py`, so the venv must be at `./venv` (or run under Docker, where it uses `python3`).
 - LaunchDarkly bootstrap: `python bootstrap/create_unified_config.py` with `LD_API_KEY` and `LD_PROJECT_KEY`. It deletes and recreates its own config (`transcript-extraction-unified`) and six tools on every run; nothing else in the project is touched.
 - Verification: `npx tsc --noEmit` (must pass), then a manual extraction run in the UI with `examples/input/*.txt` (happy path) and `data/test-transcripts/` (edge cases: empty, invalid, unicode). There is no test suite.
