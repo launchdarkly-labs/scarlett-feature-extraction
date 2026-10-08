@@ -106,9 +106,9 @@ python bootstrap/create_unified_config.py
 - ✅ 1 AI Config: `transcript-extraction-unified`
 - ✅ 6 extraction tools (schemas A-F)
 - ✅ 1 unified variation with all tools attached
-- ✅ Default model: `claude-3-7-sonnet-latest`
+- ✅ Default model: `gpt-4o-mini` (available on the Vercel AI Gateway free tier)
 
-**Important:** The script deletes all existing AI configs and tools to ensure a clean state.
+**Re-running:** The script first deletes its own config and six tools so it starts clean. Other AI configs and tools in the project are left alone.
 
 ### 2. Environment Variables
 
@@ -244,9 +244,9 @@ python bootstrap/create_unified_config.py
 
 Change model in `bootstrap/create_unified_config.py`:
 ```python
-model_config_key="Anthropic.claude-3-7-sonnet-latest"  # Premium, accurate
+model_config_key="OpenAI.gpt-4o-mini"  # Default; on the gateway's free tier
 # or
-model_config_key="Gemini.gemini-2.0-flash"  # Fast, cheaper
+model_config_key="Anthropic.claude-sonnet-4-5"  # Needs paid gateway credits
 ```
 
 ---

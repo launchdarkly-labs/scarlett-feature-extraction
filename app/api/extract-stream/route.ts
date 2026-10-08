@@ -74,7 +74,10 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        const csv = Papa.unparse(successfulResults);
+        // Each tool returns a different field set, so take the header from
+        // every row; Papa.unparse alone uses only the first row's keys.
+        const columns = [...new Set(successfulResults.flatMap((row) => Object.keys(row)))];
+        const csv = Papa.unparse(successfulResults, { columns });
 
         // Send final event with CSV data and completion metadata
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({
