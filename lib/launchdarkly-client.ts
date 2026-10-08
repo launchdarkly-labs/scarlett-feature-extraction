@@ -364,11 +364,20 @@ export class LaunchDarklyAIClient {
     };
   }
 
+  /** Send pending analytics events without closing the shared client. */
+  async flush(): Promise<void> {
+    await ldClientInstance?.flush();
+  }
+
+  /** For process shutdown. The next call after this builds and awaits a new client. */
   async close(): Promise<void> {
     if (ldClientInstance) {
       await ldClientInstance.close();
       ldClientInstance = null;
+      initializationPromise = null;
     }
+    this.ldClient = null;
+    this.aiReady = null;
   }
 }
 

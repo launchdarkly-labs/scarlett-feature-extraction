@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
           }
         );
 
-        await pipeline.close();
+        // Flush, don't close: the LaunchDarkly client is shared across requests.
+        await pipeline.flush();
 
         // Generate CSV from successful results only
         const successfulResults = results
