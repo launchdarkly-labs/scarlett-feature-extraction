@@ -85,33 +85,22 @@ export default function Home() {
   // Check the hostname at runtime since this is a client component
   const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
-  const acceptFiles = (fileList: FileList) => {
-    // Filter: only .txt and .md files, excluding system files
-    const validFiles = Array.from(fileList).filter((file) => {
-      const name = file.name.toLowerCase();
-      const isSystemFile = name.startsWith('.') || name === 'desktop.ini' || name === 'thumbs.db';
-      const isValidExtension = name.endsWith('.txt') || name.endsWith('.md');
-      return !isSystemFile && isValidExtension;
-    });
-
-    setFiles(validFiles);
-    setError("");
-
-    if (validFiles.length === 0 && fileList.length > 0) {
-      setError("No valid .txt or .md files found. System files were filtered out.");
-    }
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      acceptFiles(e.target.files);
-    }
-  };
+      // Filter: only .txt and .md files, excluding system files
+      const validFiles = Array.from(e.target.files).filter((file) => {
+        const name = file.name.toLowerCase();
+        const isSystemFile = name.startsWith('.') || name === 'desktop.ini' || name === 'thumbs.db';
+        const isValidExtension = name.endsWith('.txt') || name.endsWith('.md');
+        return !isSystemFile && isValidExtension;
+      });
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (!processing && e.dataTransfer.files.length > 0) {
-      acceptFiles(e.dataTransfer.files);
+      setFiles(validFiles);
+      setError("");
+
+      if (validFiles.length === 0 && e.target.files.length > 0) {
+        setError("No valid .txt or .md files found. System files were filtered out.");
+      }
     }
   };
 
@@ -347,15 +336,13 @@ export default function Home() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-          >
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
             <input
               type="file"
               accept=".txt,.md"
               multiple
+              // @ts-ignore - webkitdirectory is not in TypeScript types yet
+              webkitdirectory=""
               onChange={handleFileSelect}
               className="hidden"
               id="file-input"
@@ -382,10 +369,13 @@ export default function Home() {
                 </svg>
               </div>
               <p className="text-sm font-medium">
-                Click to select transcripts, or drop them here
+                Click to select a folder
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Select one or more .txt or .md files
+                Navigate into the folder, then click "Upload" or "Open"
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                All .txt and .md files will be processed
               </p>
             </label>
           </div>
