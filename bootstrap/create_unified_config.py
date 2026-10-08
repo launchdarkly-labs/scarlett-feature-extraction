@@ -25,6 +25,19 @@ PROJECT_KEY = os.getenv("LD_PROJECT_KEY", "default")
 API_KEY = os.getenv("LD_API_KEY")
 BASE_URL = "https://app.launchdarkly.com"
 
+
+def _request(method, url, retries=5, **kwargs):
+    """requests.request, retried on 429 so a rate limit can't silently drop a tool."""
+    for attempt in range(retries + 1):
+        response = requests.request(method, url, **kwargs)
+        if response.status_code != 429 or attempt == retries:
+            return response
+        reset_ms = response.headers.get("X-Ratelimit-Reset")
+        wait = max(0.0, int(reset_ms) / 1000 - time.time()) if reset_ms else 2 ** attempt
+        print(f"   ⏳ Rate limited, retrying in {wait:.1f}s")
+        time.sleep(min(wait, 30) + 0.5)
+
+
 class UnifiedBootstrap:
     def __init__(self, api_key, project_key):
         self.api_key = api_key
@@ -38,7 +51,7 @@ class UnifiedBootstrap:
     def list_ai_configs(self):
         """List all AI configs in the project"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-configs"
-        response = requests.get(url, headers=self.headers, timeout=30)
+        response = _request("GET", url, headers=self.headers, timeout=30)
 
         if response.status_code == 200:
             data = response.json()
@@ -52,7 +65,7 @@ class UnifiedBootstrap:
     def delete_ai_config(self, config_key):
         """Delete an AI config"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-configs/{config_key}"
-        response = requests.delete(url, headers=self.headers, timeout=30)
+        response = _request("DELETE", url, headers=self.headers, timeout=30)
 
         if response.status_code in [200, 204]:
             print(f"   🗑️  AI Config '{config_key}' deleted")
@@ -67,7 +80,7 @@ class UnifiedBootstrap:
     def list_tools(self):
         """List all tools"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-tools"
-        response = requests.get(url, headers=self.headers, timeout=30)
+        response = _request("GET", url, headers=self.headers, timeout=30)
 
         if response.status_code == 200:
             data = response.json()
@@ -81,7 +94,7 @@ class UnifiedBootstrap:
     def delete_tool(self, tool_key):
         """Delete a tool"""
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-tools/{tool_key}"
-        response = requests.delete(url, headers=self.headers, timeout=30)
+        response = _request("DELETE", url, headers=self.headers, timeout=30)
 
         if response.status_code in [200, 204]:
             print(f"   🗑️  Tool '{tool_key}' deleted")
@@ -133,7 +146,7 @@ class UnifiedBootstrap:
         }
 
         print(f"   Creating AI Config '{config_key}'...")
-        response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+        response = _request("POST", url, headers=self.headers, json=payload, timeout=30)
 
         if response.status_code in [200, 201]:
             print(f"   ✅ AI Config '{config_key}' created")
@@ -159,7 +172,7 @@ class UnifiedBootstrap:
         }
 
         print(f"   Creating tool '{tool_key}'...")
-        response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+        response = _request("POST", url, headers=self.headers, json=payload, timeout=30)
 
         if response.status_code in [200, 201]:
             print(f"   ✅ Tool '{tool_key}' created")
@@ -200,7 +213,7 @@ IMPORTANT: You must CALL the most appropriate tool based on the transcript conte
         }
 
         print(f"   Creating unified variation with {len(tool_keys)} tools...")
-        response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+        response = _request("POST", url, headers=self.headers, json=payload, timeout=30)
 
         if response.status_code in [200, 201]:
             print(f"   ✅ Unified variation created")
@@ -217,7 +230,7 @@ IMPORTANT: You must CALL the most appropriate tool based on the transcript conte
         """Set the unified variation as default"""
         # First get the variation ID
         url = f"{BASE_URL}/api/v2/projects/{self.project_key}/ai-configs/{config_key}/targeting"
-        response = requests.get(url, headers=self.headers, timeout=30)
+        response = _request("GET", url, headers=self.headers, timeout=30)
 
         if response.status_code != 200:
             print(f"   ⚠️  Could not get targeting info")
@@ -249,7 +262,7 @@ IMPORTANT: You must CALL the most appropriate tool based on the transcript conte
             ]
         }
 
-        response = requests.patch(url, headers=self.headers, json=payload, timeout=30)
+        response = _request("PATCH", url, headers=self.headers, json=payload, timeout=30)
 
         if response.status_code == 200:
             print(f"   ✅ Targeting updated - unified variation set as default")
@@ -366,10 +379,14 @@ def main():
     print()
     print("Created:")
     print(f"  • 1 AI Config: transcript-extraction-unified")
-    print(f"  • {len(created_tools)} extraction tools")
-    print(f"  • 1 variation with all tools attached")
+    print(f"  • {len(created_tools)} of {len(tool_mapping)} extraction tools")
+    print(f"  • 1 variation with those tools attached")
     print()
-    print("The AI will automatically select the best tool based on transcript content!")
+    if len(created_tools) < len(tool_mapping):
+        missing = sorted(set(tool_mapping) - set(created_tools))
+        print(f"⚠️  Missing tools: {', '.join(missing)}. Re-run this script.")
+    else:
+        print("The model classifies each transcript's call_category; the pipeline extracts with that category's tool schema.")
 
 if __name__ == "__main__":
     main()
