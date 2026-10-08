@@ -200,6 +200,10 @@ export class TranscriptPipeline {
     return results;
   }
 
+  async flush(): Promise<void> {
+    await this.ldAIClient.flush();
+  }
+
   async close(): Promise<void> {
     await this.ldAIClient.close();
   }
