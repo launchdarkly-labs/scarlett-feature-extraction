@@ -2,7 +2,7 @@
 
 **Transform sales call transcripts into actionable CSV data with AI-powered sentiment analysis, business insights, and deal prediction.**
 
-Built with **LaunchDarkly AI Configs** and **Vercel AI Gateway** for dynamic schema management. Uses the official `@launchdarkly/server-sdk-ai-vercel` SDK with intelligent tool selection. Includes ML model training for deal prediction using CatBoost.
+Built with **LaunchDarkly AI Configs** and **Vercel AI Gateway** for dynamic schema management. Uses `@launchdarkly/ai-server` with a custom Vercel AI Gateway handler and intelligent tool selection. Includes ML model training for deal prediction using CatBoost.
 
 ## What You Get
 
@@ -26,14 +26,12 @@ cp .env.example .env
 #   LAUNCHDARKLY_SDK_KEY=sdk-xxxxx
 #   LD_API_KEY=api-xxxxx (for bootstrap only)
 #   LD_PROJECT_KEY=your-project (for bootstrap only)
+#   AI_GATEWAY_API_KEY=vck_xxxxx (Vercel dashboard > AI Gateway > API keys)
 
-# 3. Get Vercel AI Gateway token
-npx vercel env pull
-
-# 4. Bootstrap LaunchDarkly AI Config (one-time)
+# 3. Bootstrap LaunchDarkly AI Config (one-time)
 python bootstrap/create_unified_config.py
 
-# 5. Run
+# 4. Run
 npm run dev  # → http://localhost:3000
 ```
 
@@ -41,8 +39,7 @@ npm run dev  # → http://localhost:3000
 
 ```bash
 # 1. Configure environment
-cp .env.example .env  # Edit with your keys
-npx vercel env pull   # Get OIDC token
+cp .env.example .env  # Edit with your keys, including AI_GATEWAY_API_KEY
 
 # 2. Start services
 docker-compose up
@@ -106,9 +103,9 @@ python bootstrap/create_unified_config.py
 - ✅ 1 AI Config: `transcript-extraction-unified`
 - ✅ 6 extraction tools (schemas A-F)
 - ✅ 1 unified variation with all tools attached
-- ✅ Default model: `claude-3-7-sonnet-latest`
+- ✅ Default model: `gpt-4o-mini` (available on the Vercel AI Gateway free tier)
 
-**Important:** The script deletes all existing AI configs and tools to ensure a clean state.
+**Re-running:** The script first deletes its own config and six tools so it starts clean. Other AI configs and tools in the project are left alone.
 
 ### 2. Environment Variables
 
@@ -119,14 +116,11 @@ LD_API_KEY=api-xxxxx                 # For bootstrap script only
 LD_PROJECT_KEY=your-project          # For bootstrap script only
 
 # Vercel AI Gateway (choose one)
-VERCEL_OIDC_TOKEN=eyJhbGc...         # Preferred - auto-refreshed
-AI_GATEWAY_API_KEY=vck_xxxxx         # Alternative - manual
+AI_GATEWAY_API_KEY=vck_xxxxx         # Vercel dashboard > AI Gateway > API keys
+# VERCEL_OIDC_TOKEN=eyJhbGc...       # Linked Vercel projects only; wins over the API key locally
 ```
 
-**Get OIDC token:**
-```bash
-npx vercel env pull  # Refresh every 12 hours
-```
+With a linked Vercel project you can use an OIDC token instead (`npx vercel env pull`, expires every 12 hours). Leave `VERCEL_OIDC_TOKEN` unset otherwise, because local dev prefers it over `AI_GATEWAY_API_KEY`.
 
 ---
 
@@ -244,9 +238,9 @@ python bootstrap/create_unified_config.py
 
 Change model in `bootstrap/create_unified_config.py`:
 ```python
-model_config_key="Anthropic.claude-3-7-sonnet-latest"  # Premium, accurate
+model_config_key="OpenAI.gpt-4o-mini"  # Default; on the gateway's free tier
 # or
-model_config_key="Gemini.gemini-2.0-flash"  # Fast, cheaper
+model_config_key="Anthropic.claude-sonnet-4-5"  # Needs paid gateway credits
 ```
 
 ---

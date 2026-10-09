@@ -6,13 +6,27 @@
  */
 
 import * as ld from "@launchdarkly/node-server-sdk";
-import { initAi } from "@launchdarkly/server-sdk-ai";
-import { VercelProvider } from "@launchdarkly/server-sdk-ai-vercel";
-// Note: generateObject is imported but not currently used
+import {
+  config,
+  createHandler,
+  initClient,
+  inspectConfig,
+  parseTemplate,
+} from "@launchdarkly/ai-server";
+import type { AiConfigRep, LDContext } from "@launchdarkly/ai-server";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText, jsonSchema, Output } from "ai";
 
-// Singleton instances
-let ldClientInstance: ld.LDClient | null = null;
-let initializationPromise: Promise<void> | null = null;
+/**
+ * Map a LaunchDarkly provider name to a Vercel AI Gateway provider slug.
+ *
+ * Inlined from the old VercelProvider.mapProvider. The current AI SDK has no
+ * Vercel handler package, so the one mapping it supplied lives here now.
+ */
+function mapProvider(ldProviderName: string): string {
+  const lowercased = ldProviderName.toLowerCase();
+  return lowercased === "gemini" ? "google" : lowercased;
+}
 
 /**
  * Map LaunchDarkly model names to Vercel AI Gateway compatible model names
@@ -26,6 +40,8 @@ function mapLDModelToVercel(ldModelName: string): string {
     "claude-3-5-sonnet-20240620": "claude-3.5-sonnet-20240620",
     "claude-3-haiku-20240307": "claude-3-haiku",
     "claude-3-7-sonnet-latest": "claude-3.7-sonnet",
+    "claude-sonnet-4-5": "claude-sonnet-4.5",
+    "claude-haiku-4-5": "claude-haiku-4.5",
 
     // Gemini models
     "gemini-1.5-pro-002": "gemini-2.5-pro",
@@ -38,6 +54,160 @@ function mapLDModelToVercel(ldModelName: string): string {
   // Return mapped name if exists, otherwise return original
   return modelMap[ldModelName] || ldModelName;
 }
+
+/**
+ * Resolve the Vercel AI Gateway credential for the current environment.
+ *
+ * On Vercel deployments only AI_GATEWAY_API_KEY works: VERCEL_OIDC_TOKEN
+ * authenticates to Vercel platform services, not to the gateway. Locally,
+ * `npx vercel env pull` writes VERCEL_OIDC_TOKEN and either is accepted.
+ */
+function gatewayApiKey(): string {
+  const isVercelDeployment = process.env.VERCEL === "1";
+  const apiKey = isVercelDeployment
+    ? process.env.AI_GATEWAY_API_KEY?.trim()
+    : process.env.VERCEL_OIDC_TOKEN?.trim() ||
+      process.env.AI_GATEWAY_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error(
+      "No Vercel AI Gateway API key found. Set AI_GATEWAY_API_KEY environment variable"
+    );
+  }
+
+  return apiKey;
+}
+
+/**
+ * Built on first use rather than at module load, so a missing gateway key
+ * fails the request that needs it instead of the Next.js build that imports
+ * this file.
+ */
+let gateway: ReturnType<typeof createOpenAI> | null = null;
+
+function vercelGateway(): ReturnType<typeof createOpenAI> {
+  if (!gateway) {
+    gateway = createOpenAI({
+      baseURL: "https://ai-gateway.vercel.sh/v1",
+      apiKey: gatewayApiKey(),
+    });
+  }
+  return gateway;
+}
+
+/** Map LaunchDarkly model parameters to Vercel AI SDK parameters. */
+function mapParameters(
+  parameters: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (!parameters) return {};
+  const mapping: Record<string, string> = {
+    max_tokens: "maxOutputTokens",
+    max_completion_tokens: "maxOutputTokens",
+    temperature: "temperature",
+    top_p: "topP",
+    top_k: "topK",
+    presence_penalty: "presencePenalty",
+    frequency_penalty: "frequencyPenalty",
+    stop: "stopSequences",
+    seed: "seed",
+  };
+  const params: Record<string, unknown> = {};
+  for (const [from, to] of Object.entries(mapping)) {
+    if (parameters[from] !== undefined) params[to] = parameters[from];
+  }
+  return params;
+}
+
+type Schema = Record<string, any>;
+
+/**
+ * Rewrite a JSON schema into the form structured-output strict mode accepts:
+ * every property listed as required, optional ones made nullable, and no
+ * additional properties. Without strict mode the model is free to skip
+ * required fields or echo the schema back instead of filling it.
+ */
+function toStrictSchema(schema: Schema): Schema {
+  if (schema.type === "array" && schema.items) {
+    return { ...schema, items: toStrictSchema(schema.items) };
+  }
+  if (schema.type !== "object" || !schema.properties) {
+    return schema;
+  }
+  const required = new Set<string>(schema.required ?? []);
+  const properties: Schema = {};
+  for (const [name, property] of Object.entries<Schema>(schema.properties)) {
+    const strict = toStrictSchema(property);
+    properties[name] = required.has(name)
+      ? strict
+      : { anyOf: [strict, { type: "null" }] };
+  }
+  return {
+    ...schema,
+    properties,
+    required: Object.keys(properties),
+    additionalProperties: false,
+  };
+}
+
+/** Drop the nulls strict mode uses to stand in for omitted optional fields. */
+function dropNulls(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, field]) => field !== null)
+  );
+}
+
+/**
+ * A handler is the seam between LaunchDarkly and whatever actually calls the
+ * model. The first argument says which configs it can serve: any provider, in
+ * messages mode. The wildcard matters here because the config's provider is
+ * whoever owns the model (openai, anthropic, google) - never "vercel" - and
+ * the gateway fronts all of them with one OpenAI-shaped endpoint.
+ */
+const extractionHandler = createHandler(
+  ["*", "messages"],
+  async (aiConfig, transcript = "", _toolHandlers, variables = {}) => {
+    // All six extraction tools share the core fields, so the first one's
+    // parameters double as the output schema.
+    const schema = Object.values(aiConfig.tools ?? {})[0]?.parameters;
+    if (!schema) {
+      throw new Error("No tools found in AI config");
+    }
+
+    const gatewayModelId = `${mapProvider(aiConfig.provider.name)}/${mapLDModelToVercel(
+      aiConfig.model.name
+    )}`;
+
+    // invoke() forwards `variables` without substituting them, so a handler
+    // you write yourself has to interpolate the prompt. Skip this and your
+    // mustache placeholders reach the model verbatim.
+    const system = (aiConfig.messages ?? [])
+      .filter((message) => message.role === "system")
+      .map((message) => parseTemplate(message.content, variables))
+      .join("\n");
+
+    const result = await generateText({
+      ...mapParameters(aiConfig.model.parameters),
+      model: vercelGateway().chat(gatewayModelId),
+      ...(system ? { system } : {}),
+      messages: [{ role: "user", content: `Transcript:\n\n${transcript}` }],
+      output: Output.object({ schema: jsonSchema(toStrictSchema(schema)) }),
+    });
+
+    // `total_tokens` is deliberately absent: the SDK derives the total from
+    // input + output and ignores a provider-supplied one.
+    return {
+      output: dropNulls(result.output as Record<string, unknown>),
+      usage: {
+        input_tokens: result.usage.inputTokens,
+        output_tokens: result.usage.outputTokens,
+      },
+    };
+  }
+);
+
+// Singleton instances
+let ldClientInstance: ld.LDClient | null = null;
+let initializationPromise: Promise<void> | null = null;
 
 function getLDClient(): ld.LDClient {
   if (!ldClientInstance) {
@@ -58,24 +228,28 @@ function getLDClient(): ld.LDClient {
 async function ensureInitialized(): Promise<void> {
   if (!initializationPromise) {
     const client = getLDClient();
-    initializationPromise = Promise.race([
-      client.waitForInitialization(),
-      new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('LaunchDarkly initialization timeout after 5s')), 5000)
-      )
-    ]).then(() => {
-      return;
-    }).catch((err) => {
-      throw err;
-    });
+    initializationPromise = client
+      .waitForInitialization({ timeout: 5 })
+      .then(() => undefined);
   }
 
   await initializationPromise;
 }
 
+/**
+ * Narrow a node-server-sdk context to the AI SDK's context type.
+ *
+ * node-server-sdk's LDContext still admits the legacy keyless LDUser shape,
+ * while the AI SDK requires `kind`. Every context this module builds sets it,
+ * so the narrowing is safe here even though the compiler cannot see it.
+ */
+function toAIContext(context: ld.LDContext): LDContext {
+  return context as LDContext;
+}
+
 export class LaunchDarklyAIClient {
   private ldClient: ld.LDClient | null = null;
-  private aiClient: any = null;
+  private aiReady: Promise<unknown> | null = null;
 
   constructor() {
     // Don't initialize here - let it be lazy loaded
@@ -84,7 +258,13 @@ export class LaunchDarklyAIClient {
   private ensureLDClient(): ld.LDClient {
     if (!this.ldClient) {
       this.ldClient = getLDClient();
-      this.aiClient = initAi(this.ldClient);
+      // Hand the already-initialized client to the AI SDK. There is no
+      // separate AI client object to keep: config() uses this one. The cast
+      // covers one return-type difference: node-server-sdk's close() returns
+      // void where ai-server's LDClientInterface declares Promise<void>.
+      this.aiReady = initClient(
+        this.ldClient as unknown as Parameters<typeof initClient>[0]
+      );
     }
     return this.ldClient;
   }
@@ -92,106 +272,35 @@ export class LaunchDarklyAIClient {
   async initialize(): Promise<void> {
     this.ensureLDClient();
     await ensureInitialized();
+    await this.aiReady;
   }
 
   /**
-   * Extract structured features from a transcript using AI Config
-   * Uses the working invokeStructuredModel() approach with unified AI Config
+   * Extract structured features from a transcript using the unified AI Config.
+   *
+   * One invoke() call evaluates the config, picks the model named in it, runs
+   * the extraction through the handler, and records duration, tokens, and
+   * success or error.
    */
   async extractStructuredFeatures(params: {
     configKey: string;
     context: ld.LDContext;
     transcript: string;
-  }): Promise<any> {
+  }): Promise<Record<string, any>> {
     const { configKey, context, transcript } = params;
 
     // Ensure client is initialized before each flag evaluation
     this.ensureLDClient();
     await ensureInitialized();
+    await this.aiReady;
 
     try {
-      // Get the AI config using the SDK's completionConfig method
-      const aiConfig = await this.aiClient!.completionConfig(
-        configKey,
-        context,
-        { enabled: false }
-      );
+      const result = await config({
+        key: configKey,
+        handler: extractionHandler,
+      }).invoke<Record<string, any>>(transcript, toAIContext(context));
 
-      if (!aiConfig || !aiConfig.enabled) {
-        throw new Error(`AI Config '${configKey}' not found or disabled`);
-      }
-
-      // Extract JSON schema from the first tool (all tools share same core fields)
-      const tools = aiConfig.model?.parameters?.tools || [];
-      if (!tools || tools.length === 0) {
-        throw new Error("No tools found in AI config");
-      }
-
-      const jsonSchema = tools[0].parameters;
-
-      // Get model name and provider
-      const ldModelName = aiConfig.model?.name;
-      const providerName = VercelProvider.mapProvider(aiConfig.provider?.name || "");
-
-      if (!ldModelName) {
-        throw new Error("Model name is required in AI configuration");
-      }
-
-      // Map LD model name to Vercel-compatible name
-      const vercelModelName = mapLDModelToVercel(ldModelName);
-
-      // Construct the gateway model ID: "provider/model"
-      const gatewayModelId = `${providerName}/${vercelModelName}`;
-
-      // Get API key for Vercel AI Gateway
-      // On Vercel deployments, use AI_GATEWAY_API_KEY (VERCEL_OIDC_TOKEN is for Vercel services, not AI Gateway)
-      // Locally, use either token
-      const isVercelDeployment = process.env.VERCEL === '1';
-      const apiKey = isVercelDeployment
-        ? (process.env.AI_GATEWAY_API_KEY?.trim() || "")
-        : (process.env.VERCEL_OIDC_TOKEN?.trim() || process.env.AI_GATEWAY_API_KEY?.trim() || "");
-
-      if (!apiKey) {
-        throw new Error("No Vercel AI Gateway API key found. Set AI_GATEWAY_API_KEY environment variable");
-      }
-
-
-      // Create the OpenAI interface for Vercel AI Gateway
-      const { createOpenAI } = await import("@ai-sdk/openai");
-      const vercelGateway = createOpenAI({
-        baseURL: "https://ai-gateway.vercel.sh/v1",
-        apiKey: apiKey,
-      });
-
-      const model = vercelGateway.chat(gatewayModelId);
-
-      // Map parameters using VercelProvider's utility
-      const parameters = VercelProvider.mapParameters(
-        aiConfig.model?.parameters || {}
-      );
-
-      // Create VercelProvider instance (using type assertion to handle version mismatches)
-      const provider = new VercelProvider(model as any, parameters);
-
-      // Get system prompt from config messages
-      const systemPrompt = aiConfig.config?.messages?.[0]?.content ||
-        "Extract structured information from the provided transcript.";
-
-      const messages = [
-        { role: "system" as const, content: systemPrompt },
-        { role: "user" as const, content: `Transcript:\n\n${transcript}` },
-      ];
-
-      // Use invokeStructuredModel for structured output
-      const response = await provider.invokeStructuredModel(
-        messages,
-        jsonSchema
-      );
-
-      // VercelProvider.invokeStructuredModel returns: { data: {...}, rawResponse: {...}, metrics: {...} }
-      const result = (response as any).data || (response as any).value || response;
-
-      return result;
+      return result.response;
     } catch (error: any) {
       throw new Error(`Feature extraction failed: ${error?.message || error}`);
     }
@@ -200,72 +309,43 @@ export class LaunchDarklyAIClient {
   /**
    * Extract JSON Schema from LaunchDarkly AI Config tools.
    *
-   * LaunchDarkly AI Configs can include "tools" which define structured output schemas.
-   * This function extracts the JSON schema from the first tool in the configuration.
+   * LaunchDarkly AI Configs can include "tools" which define structured output
+   * schemas. This returns the schema from the first tool in the configuration.
    *
    * @param aiConfig - The AI configuration from LaunchDarkly
    * @returns The JSON schema from the first tool, or null if no tools are defined
    */
   async extractJSONSchemaFromTools(
-    aiConfig: any | null
-  ): Promise<Record<string, any> | null> {
+    aiConfig: AiConfigRep | null
+  ): Promise<Record<string, unknown> | null> {
     if (!aiConfig) {
       return null;
     }
 
-    // LaunchDarkly returns tools in model.parameters.tools
-    const tools = aiConfig.model?.parameters?.tools;
-
-    if (!tools || tools.length === 0) {
-      return null;
-    }
-
-    try {
-      const tool = tools[0];
-
-      // LaunchDarkly returns the schema directly in tool.parameters
-      if (tool.parameters) {
-        return tool.parameters;
-      }
-
-      // Tool is a reference - this shouldn't happen in production
-      if (tool.key && !tool.parameters) {
-        return null;
-      }
-
-      return null;
-    } catch (error) {
-      return null;
-    }
+    // Tools arrive as a keyed map on the config, not as an array under
+    // model.parameters the way the previous SDK delivered them.
+    return Object.values(aiConfig.tools ?? {})[0]?.parameters ?? null;
   }
 
   /**
-   * Get AI Config from LaunchDarkly
-   * This uses the SDK's completionConfig method
+   * Get AI Config from LaunchDarkly without invoking a model.
+   *
+   * inspectConfig never throws, so a disabled config and an unreachable
+   * LaunchDarkly both arrive as enabled:false rather than as an exception. It
+   * also emits no events, which is what this read-only accessor wants.
    */
   async getAIConfig(
     configKey: string,
     context: ld.LDContext
-  ): Promise<any | null> {
-    try {
-      // Ensure client is initialized before each flag evaluation
-      this.ensureLDClient();
-      await ensureInitialized();
+  ): Promise<AiConfigRep | null> {
+    // Ensure client is initialized before each flag evaluation
+    this.ensureLDClient();
+    await ensureInitialized();
+    await this.aiReady;
 
-      const config = await this.aiClient!.completionConfig(
-        configKey,
-        context,
-        { enabled: false }
-      );
+    const inspected = await inspectConfig(configKey, toAIContext(context));
 
-      if (!config || !config.enabled) {
-        return null;
-      }
-
-      return config;
-    } catch (error) {
-      return null;
-    }
+    return inspected.enabled ? inspected.config : null;
   }
 
   /**
@@ -296,7 +376,7 @@ export class LaunchDarklyAIClient {
       initializationPromise = null;
     }
     this.ldClient = null;
-    this.aiClient = null;
+    this.aiReady = null;
   }
 }
 
@@ -317,7 +397,7 @@ export function createContext(
 }
 
 export async function extractJSONSchemaFromTools(
-  aiConfig: any | null
-): Promise<Record<string, any> | null> {
+  aiConfig: AiConfigRep | null
+): Promise<Record<string, unknown> | null> {
   return ldAIClient.extractJSONSchemaFromTools(aiConfig);
 }
