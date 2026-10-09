@@ -260,9 +260,8 @@ export class LaunchDarklyAIClient {
       this.ldClient = getLDClient();
       // Hand the already-initialized client to the AI SDK. There is no
       // separate AI client object to keep: config() uses this one. The cast
-      // covers return-type differences only: node-server-sdk's close()
-      // returns void and flush() resolves to a boolean, where
-      // LDClientInterface declares Promise<void> and void.
+      // covers one return-type difference: node-server-sdk's close() returns
+      // void where ai-server's LDClientInterface declares Promise<void>.
       this.aiReady = initClient(
         this.ldClient as unknown as Parameters<typeof initClient>[0]
       );
