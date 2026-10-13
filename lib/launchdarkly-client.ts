@@ -59,15 +59,15 @@ function mapLDModelToVercel(ldModelName: string): string {
  * Resolve the Vercel AI Gateway credential for the current environment.
  *
  * On Vercel deployments only AI_GATEWAY_API_KEY works: VERCEL_OIDC_TOKEN
- * authenticates to Vercel platform services, not to the gateway. Locally,
- * `npx vercel env pull` writes VERCEL_OIDC_TOKEN and either is accepted.
+ * authenticates to Vercel platform services, not to the gateway. Locally the
+ * API key still wins, so a stale VERCEL_OIDC_TOKEN from `npx vercel env pull`
+ * (it expires every 12 hours) is only used when no API key is set.
  */
 function gatewayApiKey(): string {
   const isVercelDeployment = process.env.VERCEL === "1";
-  const apiKey = isVercelDeployment
-    ? process.env.AI_GATEWAY_API_KEY?.trim()
-    : process.env.VERCEL_OIDC_TOKEN?.trim() ||
-      process.env.AI_GATEWAY_API_KEY?.trim();
+  const apiKey =
+    process.env.AI_GATEWAY_API_KEY?.trim() ||
+    (isVercelDeployment ? undefined : process.env.VERCEL_OIDC_TOKEN?.trim());
 
   if (!apiKey) {
     throw new Error(

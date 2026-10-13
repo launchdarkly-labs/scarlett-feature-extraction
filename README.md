@@ -117,10 +117,10 @@ LD_PROJECT_KEY=your-project          # For bootstrap script only
 
 # Vercel AI Gateway (choose one)
 AI_GATEWAY_API_KEY=vck_xxxxx         # Vercel dashboard > AI Gateway > API keys
-# VERCEL_OIDC_TOKEN=eyJhbGc...       # Linked Vercel projects only; wins over the API key locally
+# VERCEL_OIDC_TOKEN=eyJhbGc...       # Linked Vercel projects only; used when no API key is set
 ```
 
-With a linked Vercel project you can use an OIDC token instead (`npx vercel env pull`, expires every 12 hours). Leave `VERCEL_OIDC_TOKEN` unset otherwise, because local dev prefers it over `AI_GATEWAY_API_KEY`.
+With a linked Vercel project you can use an OIDC token instead (`npx vercel env pull`, expires every 12 hours). The app uses it only when `AI_GATEWAY_API_KEY` is unset, so a stale token never overrides a working key.
 
 ---
 
