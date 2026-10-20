@@ -7,7 +7,8 @@
  * - Extracts structured data in a single LLM call
  * - Returns 40-65 fields depending on which tool was selected
  *
- * The implementation uses the official @launchdarkly/server-sdk-ai-vercel pattern
+ * The implementation uses the @launchdarkly/ai-server handler pattern: the model call
+ * runs inside createHandler(...) and invoke() emits the metrics around it.
  */
 
 import {
@@ -106,7 +107,12 @@ export class TranscriptPipeline {
         'customer_success': 'extract_customer_success_features',
         'renewal': 'extract_customer_success_features',
       };
-      const toolUsed = toolMapping[callCategory] || 'unknown';
+      // call_category is free text, so "Customer Success/QBR" has to find
+      // customer_success by containment rather than exact match.
+      const toolUsed =
+        toolMapping[callCategory] ||
+        Object.entries(toolMapping).find(([category]) => callCategory.includes(category))?.[1] ||
+        'unknown';
 
       // Remove variation_used field (legacy from old approach)
       const { variation_used, ...cleanFeatures } = features;
